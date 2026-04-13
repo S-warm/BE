@@ -5,5 +5,5 @@ import java.util.List;
 import java.util.UUID;
 
 public interface SimulationRepository extends JpaRepository<Simulation, UUID> {
-    List<Simulation> findByUserId(UUID userId);
+    List<Simulation> findByUser_IdOrderByCreatedAtDesc(UUID userId);
 }
