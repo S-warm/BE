@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,13 @@ public class SimulationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다. id=" + userId));
 
+        // ✅ [M-4] 연령대 비율 합계 검증
+        int ratioSum = request.getAgeRatioTeen() + request.getAgeRatioFifty() + request.getAgeRatioEighty();
+        if (ratioSum != 100) {
+            throw new IllegalArgumentException(
+                    "연령대 비율 합계는 100이어야 합니다. 현재 합계: " + ratioSum);
+        }
+
         // 1) Simulation 먼저 저장 (settings는 @MapsId라 FK 필요)
         Simulation simulation = Simulation.builder()
                 .user(user)
@@ -54,6 +62,7 @@ public class SimulationService {
         Simulation saved = simulationRepository.save(simulation);
 
         // 2) SimulationSettings 저장 (simulation_id = saved.getId())
+        // ✅ [M-2] visionImpairment, attentionLevel 추가 저장
         SimulationSettings settings = SimulationSettings.builder()
                 .simulation(saved)
                 .digitalLiteracy(request.getDigitalLiteracy())
@@ -62,6 +71,8 @@ public class SimulationService {
                 .ageRatioTeen(request.getAgeRatioTeen())
                 .ageRatioFifty(request.getAgeRatioFifty())
                 .ageRatioEighty(request.getAgeRatioEighty())
+                .visionImpairment(request.getVisionImpairment())
+                .attentionLevel(request.getAttentionLevel())
                 .build();
 
         simulationSettingsRepository.save(settings);
@@ -127,11 +138,11 @@ public class SimulationService {
     // GET - 히트맵 탭
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
-    public SimulationHeatmapResponse getHeatmap(UUID simulationId) {
+    public SimulationHeatmapResponse getHeatmap(UUID simulationId, String ageGroup, int page, int size) {
         // ✅ TODO: 실제 히트맵 로그 데이터로 교체
         simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
-        return buildMockHeatmap();
+        return buildMockHeatmap(ageGroup, page, size);
     }
 
     // ────────────────────────────────────────
@@ -195,8 +206,9 @@ public class SimulationService {
                 .build();
     }
 
+    // ✅ [ageBand 통일] Heatmap ageGroup 파라미터와 동일한 한국어 형식 사용
     private static final String[] AGE_KEYS = {
-            "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"
+            "10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대"
     };
 
     private Map<String, SimulationOverviewResponse.AgeGroupDto> buildMockAgeGroup(
@@ -217,42 +229,44 @@ public class SimulationService {
     // Mock - Issues
     // ────────────────────────────────────────
     private SimulationIssuesResponse buildMockIssues() {
+        // ✅ [C-1] Mock issueId: Long → UUID (실제 DB 연동 시 Issue.id 값으로 교체)
+        UUID mockIssueId1 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000001");
+        UUID mockIssueId2 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000002");
+        UUID mockIssueId3 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000003");
+        UUID mockIssueId4 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000004");
+        UUID mockIssueId5 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000005");
+
         List<SimulationIssuesResponse.IssueDto> page1Issues = List.of(
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(1L).title("입력 레이블이 낮은 대비율").category("Accessibility").severity("High")
+                        .issueId(mockIssueId1).title("입력 레이블이 낮은 대비율").category("Accessibility").severity("HIGH")
                         .affectedUsersCount(142).affectedUsersPercent(14.2)
                         .description("흰색 배경 위의 회색 텍스트로 인해 WCAG 2.1 AA 기준(4.5:1) 미달")
-                        // ✅ FIX 6: selector → targetHtml
                         .targetHtml(".form-label")
                         .tags(List.of("contrast", "wcag_aa")).build(),
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(2L).title("제출 버튼이 키보드로 접근 불가").category("Accessibility").severity("Medium")
+                        .issueId(mockIssueId2).title("제출 버튼이 키보드로 접근 불가").category("Accessibility").severity("MEDIUM")
                         .affectedUsersCount(180).affectedUsersPercent(18.0)
                         .description("탭 키로 제출 버튼에 포커스가 되지 않아 키보드 전용 사용자 접근 불가")
-                        // ✅ FIX 6: selector → targetHtml
                         .targetHtml(".submit-btn")
                         .tags(List.of("keyboard", "focus", "wcag_aa")).build(),
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(3L).title("오류 메시지 노출 시간이 짧음").category("Usability").severity("Low")
+                        .issueId(mockIssueId3).title("오류 메시지 노출 시간이 짧음").category("Usability").severity("LOW")
                         .affectedUsersCount(156).affectedUsersPercent(15.6)
                         .description("유효성 검사 실패 시 오류 메시지가 2초 이내 사라져 사용자가 인지하지 못함")
-                        // ✅ FIX 6: selector → targetHtml
                         .targetHtml(".error-message")
                         .tags(List.of("timing", "feedback")).build()
         );
         List<SimulationIssuesResponse.IssueDto> page2Issues = List.of(
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(4L).title("배너 이미지 alt 텍스트 누락").category("Accessibility").severity("High")
+                        .issueId(mockIssueId4).title("배너 이미지 alt 텍스트 누락").category("Accessibility").severity("HIGH")
                         .affectedUsersCount(210).affectedUsersPercent(21.0)
                         .description("메인 배너 이미지에 alt 속성이 없어 스크린리더 사용자 접근 불가")
-                        // ✅ FIX 6: selector → targetHtml
                         .targetHtml(".main-banner img")
                         .tags(List.of("alt", "wcag_aa", "screen-reader")).build(),
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(5L).title("모바일 터치 영역 너무 작음").category("Usability").severity("Medium")
+                        .issueId(mockIssueId5).title("모바일 터치 영역 너무 작음").category("Usability").severity("MEDIUM")
                         .affectedUsersCount(95).affectedUsersPercent(9.5)
                         .description("하단 네비게이션 버튼의 터치 영역이 24px로 권장 최소값(44px) 미달")
-                        // ✅ FIX 6: selector → targetHtml
                         .targetHtml(".nav-btn")
                         .tags(List.of("touch-target", "mobile")).build()
         );
@@ -273,21 +287,26 @@ public class SimulationService {
     // Mock - AI Fix
     // ────────────────────────────────────────
     private SimulationAiFixResponse buildMockAiFix() {
+        // ✅ [C-1] Issues와 동일한 Mock UUID 재사용 (issueId 연동 기준 키)
+        UUID mockIssueId1 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000001");
+        UUID mockIssueId2 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000002");
+        UUID mockIssueId3 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000003");
+
         List<SimulationAiFixResponse.AiFixDto> page1Fixes = List.of(
                 SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(1L).title("입력 레이블이 낮은 대비율").severity("High").affectedUsersCount(142)
+                        .issueId(mockIssueId1).title("입력 레이블이 낮은 대비율").severity("HIGH").affectedUsersCount(142)
                         .beforeCode(".form-label {\n  color: #999999;\n  font-size: 14px;\n  margin-bottom: 8px;\n}")
                         .afterCode(".form-label {\n  color: #334155;\n  font-size: 14px;\n  margin-bottom: 8px;\n  font-weight: 500;\n}")
                         .impactDescription("142명의 사용자가 이제 레이블을 명확하게 읽을 수 있음")
                         .changeDescription("레이블 색상을 #999999에서 #334155로 변경하여 대비율을 달성하고 WCAG의 표준을 충족합니다.").build(),
                 SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(2L).title("제출 버튼이 키보드로 접근 불가").severity("Medium").affectedUsersCount(180)
+                        .issueId(mockIssueId2).title("제출 버튼이 키보드로 접근 불가").severity("MEDIUM").affectedUsersCount(180)
                         .beforeCode(".submit-btn {\n  outline: none;\n}")
                         .afterCode(".submit-btn {\n  outline: 2px solid #334155;\n  outline-offset: 2px;\n}")
                         .impactDescription("180명의 키보드 사용자가 버튼에 접근 가능해짐")
                         .changeDescription("outline: none 제거 후 명시적 포커스 스타일을 추가하여 키보드 접근성을 확보합니다.").build(),
                 SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(3L).title("오류 메시지 노출 시간이 짧음").severity("Low").affectedUsersCount(156)
+                        .issueId(mockIssueId3).title("오류 메시지 노출 시간이 짧음").severity("LOW").affectedUsersCount(156)
                         .beforeCode(".error-message {\n  display: none;\n  animation: fadeOut 2s ease;\n}")
                         .afterCode(".error-message {\n  display: block;\n  animation: fadeOut 5s ease;\n}")
                         .impactDescription("156명의 사용자가 오류 메시지를 충분한 시간 동안 인지할 수 있음")
@@ -305,111 +324,185 @@ public class SimulationService {
     // ────────────────────────────────────────
     // Mock - Heatmap
     // ────────────────────────────────────────
-    private SimulationHeatmapResponse buildMockHeatmap() {
+    private SimulationHeatmapResponse buildMockHeatmap(String ageGroup, int page, int size) {
 
-        SimulationHeatmapResponse.ErrorPointDto p1All = SimulationHeatmapResponse.ErrorPointDto.builder()
-                .x(0.72).y(0.35).count(18).severity("CRITICAL").errorType("Timeout")
-                .affectedCount(12).blockRate(100.0).repeatCount(4.5)
-                .description("클릭/스텝 로그에서 Timeout 오류가 집중된 구간입니다.")
-                .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
-                        .timeout(2).network(0).console(0).build())
-                .issueId(1L).build();
+        // 1️⃣ 페이지별 전체 오류점 맵 생성
+        Map<String, Map<String, List<SimulationHeatmapResponse.ErrorPointDto>>> allPagesMaps =
+                createAllPagesErrorPointsMaps();
 
-        SimulationHeatmapResponse.ErrorPointDto p2All = SimulationHeatmapResponse.ErrorPointDto.builder()
-                .x(0.38).y(0.52).count(9).severity("HIGH").errorType("Network")
-                .affectedCount(5).blockRate(60.0).repeatCount(2.1)
-                .description("네트워크 오류로 인한 페이지 로딩 지연 구간입니다.")
-                .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
-                        .timeout(0).network(4).console(1).build())
-                .issueId(2L).build();
+        // 2️⃣ 페이지별 응답 조립
+        List<SimulationHeatmapResponse.HeatmapPageDto> pageDtos = new ArrayList<>();
+        for (Map.Entry<String, Map<String, List<SimulationHeatmapResponse.ErrorPointDto>>> pageEntry
+                : allPagesMaps.entrySet()) {
 
-        SimulationHeatmapResponse.ErrorPointDto p3All = SimulationHeatmapResponse.ErrorPointDto.builder()
-                .x(0.55).y(0.68).count(5).severity("MEDIUM").errorType("Console")
-                .affectedCount(3).blockRate(40.0).repeatCount(1.8)
-                .description("Console 오류로 인한 UI 렌더링 지연 구간입니다.")
-                .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
-                        .timeout(0).network(0).console(3).build())
-                .issueId(3L).build();
+            String pageKey = pageEntry.getKey();
+            Map<String, List<SimulationHeatmapResponse.ErrorPointDto>> errorPointsByAge = pageEntry.getValue();
 
-        Map<String, List<SimulationHeatmapResponse.ErrorPointDto>> errorPointsByAge = new LinkedHashMap<>();
-        errorPointsByAge.put("all",  List.of(p1All, p2All, p3All));
-        errorPointsByAge.put("10대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+            // 3️⃣ 연령대 필터링
+            List<SimulationHeatmapResponse.ErrorPointDto> filtered;
+            if ("all".equals(ageGroup)) {
+                filtered = errorPointsByAge.values().stream()
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+            } else {
+                filtered = errorPointsByAge.getOrDefault(ageGroup, new ArrayList<>());
+            }
+
+            // 4️⃣ ageBand 필드 채우기
+            List<SimulationHeatmapResponse.ErrorPointDto> pointsWithAgeBand = filtered.stream()
+                    .map(p -> SimulationHeatmapResponse.ErrorPointDto.builder()
+                            .x(p.getX()).y(p.getY()).count(p.getCount())
+                            .severity(p.getSeverity()).errorType(p.getErrorType())
+                            .affectedUsersCount(p.getAffectedUsersCount()).blockRate(p.getBlockRate())
+                            .repeatCount(p.getRepeatCount()).description(p.getDescription())
+                            .errorBreakdown(p.getErrorBreakdown()).issueId(p.getIssueId())
+                            .ageBand(ageGroup)
+                            .build())
+                    .collect(Collectors.toList());
+
+            // 5️⃣ 페이징 계산
+            int totalCount = pointsWithAgeBand.size();
+            int startIdx = page * size;
+            int endIdx = Math.min(startIdx + size, totalCount);
+            List<SimulationHeatmapResponse.ErrorPointDto> paginatedPoints =
+                    (startIdx >= totalCount)
+                            ? new ArrayList<>()
+                            : pointsWithAgeBand.subList(startIdx, endIdx);
+
+            // 6️⃣ 페이징 메타데이터
+            SimulationHeatmapResponse.PaginationDto pagination = SimulationHeatmapResponse.PaginationDto.builder()
+                    .totalCount(totalCount)
+                    .currentPage(page)
+                    .pageSize(size)
+                    .hasMore(endIdx < totalCount)
+                    .build();
+
+            // 7️⃣ 페이지별 DTO 조립
+            String[] parts = pageKey.split("\\|");
+            pageDtos.add(SimulationHeatmapResponse.HeatmapPageDto.builder()
+                    .order(Integer.parseInt(parts[0]))
+                    .pageName(parts[1])
+                    .pageUrl(parts[2])
+                    .screenshotUrl(parts[3])
+                    .totalErrorCount(totalCount)
+                    .errorPoints(paginatedPoints)
+                    .currentAgeGroup(ageGroup)
+                    .pagination(pagination)
+                    .build());
+        }
+
+        return SimulationHeatmapResponse.builder().pages(pageDtos).build();
+    }
+
+    /**
+     * 모든 페이지별, 연령대별 오류점 Mock 데이터 생성
+     * key: "order|pageName|pageUrl|screenshotUrl"
+     */
+    private Map<String, Map<String, List<SimulationHeatmapResponse.ErrorPointDto>>> createAllPagesErrorPointsMaps() {
+
+        // ✅ [C-1] Heatmap issueId: Long → UUID (Issues 탭의 mockIssueId와 동일한 값으로 연동)
+        UUID hmIssueId1 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000001");
+        UUID hmIssueId2 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000002");
+        UUID hmIssueId3 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000003");
+        UUID hmIssueId4 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000004");
+
+        Map<String, Map<String, List<SimulationHeatmapResponse.ErrorPointDto>>> pages = new LinkedHashMap<>();
+
+        // ── 페이지 1: 로그인 페이지 ──
+        Map<String, List<SimulationHeatmapResponse.ErrorPointDto>> page1 = new LinkedHashMap<>();
+        page1.put("all", List.of(
+                SimulationHeatmapResponse.ErrorPointDto.builder()
+                        .x(0.72).y(0.35).count(18).severity("CRITICAL").errorType("Timeout")
+                        .affectedUsersCount(12).blockRate(100.0).repeatCount(4.5)
+                        .description("클릭/스텝 로그에서 Timeout 오류가 집중된 구간입니다.")
+                        .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
+                                .timeout(2).network(0).console(0).build())
+                        .issueId(hmIssueId1).build(),
+                SimulationHeatmapResponse.ErrorPointDto.builder()
+                        .x(0.38).y(0.52).count(9).severity("HIGH").errorType("Network")
+                        .affectedUsersCount(5).blockRate(60.0).repeatCount(2.1)
+                        .description("네트워크 오류로 인한 페이지 로딩 지연 구간입니다.")
+                        .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
+                                .timeout(0).network(4).console(1).build())
+                        .issueId(hmIssueId2).build(),
+                SimulationHeatmapResponse.ErrorPointDto.builder()
+                        .x(0.55).y(0.68).count(5).severity("MEDIUM").errorType("Console")
+                        .affectedUsersCount(3).blockRate(40.0).repeatCount(1.8)
+                        .description("Console 오류로 인한 UI 렌더링 지연 구간입니다.")
+                        .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
+                                .timeout(0).network(0).console(3).build())
+                        .issueId(hmIssueId3).build()
+        ));
+        page1.put("10대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
                 .x(0.72).y(0.35).count(2).severity("LOW").errorType("Timeout")
-                .affectedCount(1).blockRate(20.0).repeatCount(1.0)
+                .affectedUsersCount(1).blockRate(20.0).repeatCount(1.0)
                 .description("10대 에이전트 낮은 빈도 오류입니다.")
                 .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
                         .timeout(1).network(0).console(0).build())
-                .issueId(1L).build()));
-        errorPointsByAge.put("20대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+                .issueId(hmIssueId1).build()));
+        page1.put("20대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
                 .x(0.72).y(0.35).count(3).severity("LOW").errorType("Timeout")
-                .affectedCount(2).blockRate(25.0).repeatCount(1.3)
+                .affectedUsersCount(2).blockRate(25.0).repeatCount(1.3)
                 .description("20대 에이전트 낮은 빈도 오류입니다.")
                 .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
                         .timeout(2).network(0).console(0).build())
-                .issueId(1L).build()));
-        errorPointsByAge.put("30대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+                .issueId(hmIssueId1).build()));
+        page1.put("30대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
                 .x(0.38).y(0.52).count(4).severity("MEDIUM").errorType("Network")
-                .affectedCount(2).blockRate(30.0).repeatCount(1.5)
+                .affectedUsersCount(2).blockRate(30.0).repeatCount(1.5)
                 .description("30대 에이전트 네트워크 오류 구간입니다.")
                 .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
                         .timeout(0).network(3).console(0).build())
-                .issueId(2L).build()));
-        errorPointsByAge.put("40대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+                .issueId(hmIssueId2).build()));
+        page1.put("40대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
                 .x(0.72).y(0.35).count(6).severity("MEDIUM").errorType("Timeout")
-                .affectedCount(3).blockRate(45.0).repeatCount(2.2)
+                .affectedUsersCount(3).blockRate(45.0).repeatCount(2.2)
                 .description("40대 에이전트 Timeout 오류 구간입니다.")
                 .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
                         .timeout(3).network(1).console(0).build())
-                .issueId(1L).build()));
-        errorPointsByAge.put("50대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+                .issueId(hmIssueId1).build()));
+        page1.put("50대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
                 .x(0.72).y(0.35).count(8).severity("HIGH").errorType("Timeout")
-                .affectedCount(5).blockRate(65.0).repeatCount(3.1)
+                .affectedUsersCount(5).blockRate(65.0).repeatCount(3.1)
                 .description("50대 에이전트 높은 빈도의 Timeout 오류 구간입니다.")
                 .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
                         .timeout(5).network(1).console(0).build())
-                .issueId(1L).build()));
-        errorPointsByAge.put("60대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+                .issueId(hmIssueId1).build()));
+        page1.put("60대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
                 .x(0.72).y(0.35).count(11).severity("HIGH").errorType("Timeout")
-                .affectedCount(6).blockRate(80.0).repeatCount(4.0)
+                .affectedUsersCount(6).blockRate(80.0).repeatCount(4.0)
                 .description("60대 에이전트 심각한 Timeout 오류 구간입니다.")
                 .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
                         .timeout(6).network(2).console(0).build())
-                .issueId(1L).build()));
-        errorPointsByAge.put("70대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+                .issueId(hmIssueId1).build()));
+        page1.put("70대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
                 .x(0.72).y(0.35).count(15).severity("CRITICAL").errorType("Timeout")
-                .affectedCount(8).blockRate(100.0).repeatCount(6.8)
+                .affectedUsersCount(8).blockRate(100.0).repeatCount(6.8)
                 .description("70대 에이전트 심각한 Timeout 오류 집중 구간입니다.")
                 .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
                         .timeout(8).network(2).console(1).build())
-                .issueId(1L).build()));
-        errorPointsByAge.put("80대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+                .issueId(hmIssueId1).build()));
+        page1.put("80대", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
                 .x(0.72).y(0.35).count(18).severity("CRITICAL").errorType("Timeout")
-                .affectedCount(9).blockRate(100.0).repeatCount(8.3)
+                .affectedUsersCount(9).blockRate(100.0).repeatCount(8.3)
                 .description("80대 에이전트 가장 심각한 Timeout 오류 집중 구간입니다.")
                 .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
                         .timeout(9).network(3).console(2).build())
-                .issueId(1L).build()));
+                .issueId(hmIssueId1).build()));
+        pages.put("1|로그인 페이지|https://a-mall.com/login|https://storage.example.com/screenshots/sim42_page1.png", page1);
 
-        return SimulationHeatmapResponse.builder()
-                .pages(List.of(
-                        SimulationHeatmapResponse.HeatmapPageDto.builder()
-                                .order(1).pageName("로그인 페이지").pageUrl("https://a-mall.com/login")
-                                .screenshotUrl("https://storage.example.com/screenshots/sim42_page1.png")
-                                .totalErrorCount(12).errorPointsByAge(errorPointsByAge).build(),
-                        SimulationHeatmapResponse.HeatmapPageDto.builder()
-                                .order(2).pageName("메인 페이지").pageUrl("https://a-mall.com/")
-                                .screenshotUrl("https://storage.example.com/screenshots/sim42_page2.png")
-                                .totalErrorCount(5)
-                                .errorPointsByAge(new LinkedHashMap<>() {{
-                                    put("all", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
-                                            .x(0.45).y(0.30).count(5).severity("MEDIUM").errorType("Console")
-                                            .affectedCount(3).blockRate(35.0).repeatCount(1.5)
-                                            .description("메인 페이지 Console 오류 집중 구간입니다.")
-                                            .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
-                                                    .timeout(0).network(0).console(3).build())
-                                            .issueId(4L).build()));
-                                }}).build()
-                )).build();
+        // ── 페이지 2: 메인 페이지 ──
+        Map<String, List<SimulationHeatmapResponse.ErrorPointDto>> page2 = new LinkedHashMap<>();
+        page2.put("all", List.of(SimulationHeatmapResponse.ErrorPointDto.builder()
+                .x(0.45).y(0.30).count(5).severity("MEDIUM").errorType("Console")
+                .affectedUsersCount(3).blockRate(35.0).repeatCount(1.5)
+                .description("메인 페이지 Console 오류 집중 구간입니다.")
+                .errorBreakdown(SimulationHeatmapResponse.ErrorBreakdownDto.builder()
+                        .timeout(0).network(0).console(3).build())
+                .issueId(hmIssueId4).build()));
+        pages.put("2|메인 페이지|https://a-mall.com/|https://storage.example.com/screenshots/sim42_page2.png", page2);
+
+        return pages;
     }
 
     // ────────────────────────────────────────

@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Builder
@@ -61,8 +62,8 @@ public class SimulationIssuesResponse {
     @Schema(description = "개별 이슈")
     public static class IssueDto {
 
-        @Schema(description = "이슈 고유 ID (AI 수정 탭 연동 기준 키)", example = "1")
-        private Long issueId;
+        @Schema(description = "이슈 고유 ID (AI 수정 탭 연동 기준 키)", example = "550e8400-e29b-41d4-a716-446655440001")
+        private UUID issueId;
 
         @Schema(description = "이슈 제목", example = "입력 레이블이 낮은 대비율")
         private String title;
@@ -74,8 +75,8 @@ public class SimulationIssuesResponse {
         private String category;
 
         @Schema(
-                description = "심각도. 허용값: High / Medium / Low",
-                example = "High"
+                description = "심각도. 허용값: CRITICAL / HIGH / MEDIUM / LOW",
+                example = "HIGH"
         )
         private String severity;
 

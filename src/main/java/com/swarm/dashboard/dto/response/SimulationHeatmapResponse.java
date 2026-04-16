@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 @Getter
 @Builder
@@ -47,13 +47,14 @@ public class SimulationHeatmapResponse {
         @Schema(description = "해당 페이지 총 오류 발생 수", example = "12")
         private int totalErrorCount;
 
-        @Schema(
-                description = "연령대별 오류 좌표 목록. " +
-                        "key: 'all','10대','20대','30대','40대','50대','60대','70대','80대'. " +
-                        "'all'은 전체 연령대 통합. " +
-                        "슬라이더는 프론트에서 연령대 누적 오버레이 처리."
-        )
-        private Map<String, List<ErrorPointDto>> errorPointsByAge;
+        @Schema(description = "오류 좌표 목록 (일렬 나열). 각 항목의 ageBand 필드로 연령대 구분.")
+        private List<ErrorPointDto> errorPoints;
+
+        @Schema(description = "현재 요청한 연령대 필터 (all, 10대, 20대, ...)", example = "all")
+        private String currentAgeGroup;
+
+        @Schema(description = "페이징 정보")
+        private PaginationDto pagination;
     }
 
     // -----------------------------------------------
@@ -98,7 +99,7 @@ public class SimulationHeatmapResponse {
         private String errorType;
 
         @Schema(description = "영향받은 에이전트 수", example = "2")
-        private int affectedCount;
+        private int affectedUsersCount;
 
         @Schema(description = "블락 비율 (%) = 해당 지점에서 블락된 에이전트 / 진입 에이전트 * 100", example = "100.0")
         private double blockRate;
@@ -115,8 +116,14 @@ public class SimulationHeatmapResponse {
         @Schema(description = "오류 타입별 세부 카운트 (팝업 하단 breakdown)")
         private ErrorBreakdownDto errorBreakdown;
 
-        @Schema(description = "연관 이슈 ID (Issues 탭 issueId와 동일한 키, 없으면 null)", example = "1")
-        private Long issueId;
+        @Schema(description = "연관 이슈 ID (Issues 탭 issueId와 동일한 키, 없으면 null)", example = "550e8400-e29b-41d4-a716-446655440001")
+        private UUID issueId;
+
+        @Schema(
+                description = "이 오류점이 속한 연령대 (all, 10대, 20대, ...)",
+                example = "all"
+        )
+        private String ageBand;
     }
 
     // -----------------------------------------------
@@ -137,5 +144,28 @@ public class SimulationHeatmapResponse {
 
         @Schema(description = "Console 오류 발생 수", example = "0")
         private int console;
+    }
+
+    // -----------------------------------------------
+    // 페이징 정보
+    // -----------------------------------------------
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "페이징 메타데이터")
+    public static class PaginationDto {
+
+        @Schema(description = "전체 오류점 개수 (해당 연령대 기준)", example = "2000")
+        private long totalCount;
+
+        @Schema(description = "현재 페이지 번호 (0부터 시작)", example = "0")
+        private int currentPage;
+
+        @Schema(description = "한 페이지당 항목 수", example = "100")
+        private int pageSize;
+
+        @Schema(description = "다음 페이지가 있는지 여부", example = "true")
+        private boolean hasMore;
     }
 }

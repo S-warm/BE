@@ -24,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -42,10 +43,11 @@ public class SimulationController {
             summary = "시뮬레이션 생성",
             description = """
             새로운 UX 시뮬레이션 프로젝트를 생성합니다.
-            
-            - device 허용값: Mac / Windows / iPhone / Android / iPad / AndroidTablet
-            - digitalLiteracy 허용값: High / Mid / Low
-            - 연령대별 비율(ratio10s + ratio40s + ratio60s) 합계는 프론트엔드에서 100%로 보장됩니다.
+
+            - personaDevice 허용값: desktop / mobile / tablet
+            - digitalLiteracy 허용값: high / medium / low
+            - ageRatioTeen + ageRatioFifty + ageRatioEighty 합계 = 100 (서버에서 검증)
+            - visionImpairment, attentionLevel 은 선택 항목 (0~100)
             - userId 인증은 추후 JWT 방식으로 교체 예정입니다.
             """
     )
@@ -58,10 +60,10 @@ public class SimulationController {
                             schema = @Schema(implementation = SimulationCreateResponse.class),
                             examples = @ExampleObject(value = """
                     {
-                      "id": 42,
-                      "siteName": "ShoppingMall",
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "title": "Q1 2026 체크아웃 플로우 UX 테스트",
                       "status": "pending",
-                      "createdAt": "2026-04-11T10:30:45"
+                      "createdAt": "2026-04-11T10:30:45+09:00"
                     }
                     """)
                     )
@@ -94,7 +96,7 @@ public class SimulationController {
             summary = "시뮬레이션 목록 조회 (사이드바용)",
             description = """
             특정 사용자의 시뮬레이션 목록을 최신순으로 반환합니다.
-            사이드바 전용 경량 응답입니다. (id, siteName, title, status, createdAt)
+            사이드바 전용 경량 응답입니다. (id, title, status, createdAt)
             userId 인증은 추후 JWT 방식으로 교체 예정입니다.
             """
     )
@@ -107,18 +109,16 @@ public class SimulationController {
                             examples = @ExampleObject(value = """
                     [
                       {
-                        "id": 42,
-                        "siteName": "ShoppingMall",
+                        "id": "550e8400-e29b-41d4-a716-446655440001",
                         "title": "Q1 2026 체크아웃 플로우 UX 테스트",
                         "status": "completed",
-                        "createdAt": "2026-04-11T10:30:45"
+                        "createdAt": "2026-04-11T10:30:45+09:00"
                       },
                       {
-                        "id": 41,
-                        "siteName": "Fiora",
+                        "id": "550e8400-e29b-41d4-a716-446655440002",
                         "title": "메인 페이지 UX 테스트",
                         "status": "pending",
-                        "createdAt": "2026-04-10T09:00:00"
+                        "createdAt": "2026-04-10T09:00:00+09:00"
                       }
                     ]
                     """)
@@ -418,9 +418,13 @@ public class SimulationController {
               1~3 = LOW, 4~7 = MEDIUM, 8~14 = HIGH, 15+ = CRITICAL
 
             [연령대 필터]
-            - errorPointsByAge 키: all / 10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대 / 80대
-            - 프론트 연령대 탭 클릭 시 해당 키 데이터 렌더링
-            - 오버레이 슬라이더: 프론트에서 연령대 누적 처리 (API 무관)
+            - ?ageGroup=all (기본값) / 10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대 / 80대
+            - 각 오류점의 ageBand 필드로 연령대 구분
+            - 프론트에서 errorPoints.filter(p => p.ageBand === "10대") 로 필터링 가능
+
+            [페이징]
+            - ?page=0&size=100 (기본값)
+            - pagination.hasMore 로 다음 페이지 존재 여부 확인
 
             [팝업 데이터]
             - 좌표 클릭 시 팝업: severity / errorType / affectedCount / blockRate / repeatCount
@@ -443,28 +447,24 @@ public class SimulationController {
                           "pageName": "로그인 페이지",
                           "pageUrl": "https://a-mall.com/login",
                           "screenshotUrl": "https://storage.example.com/screenshots/sim42_page1.png",
-                          "totalErrorCount": 12,
-                          "errorPointsByAge": {
-                            "all": [
-                              {
-                                "x": 0.72, "y": 0.35, "count": 18,
-                                "severity": "CRITICAL", "errorType": "Timeout",
-                                "affectedCount": 12, "blockRate": 100.0, "repeatCount": 4.5,
-                                "description": "Timeout 오류가 집중된 구간입니다.",
-                                "errorBreakdown": { "timeout": 2, "network": 0, "console": 0 },
-                                "issueId": 1
-                              }
-                            ],
-                            "10대": [
-                              {
-                                "x": 0.72, "y": 0.35, "count": 2,
-                                "severity": "LOW", "errorType": "Timeout",
-                                "affectedCount": 1, "blockRate": 20.0, "repeatCount": 1.0,
-                                "description": "10대 에이전트 낮은 빈도 오류입니다.",
-                                "errorBreakdown": { "timeout": 1, "network": 0, "console": 0 },
-                                "issueId": 1
-                              }
-                            ]
+                          "totalErrorCount": 3,
+                          "errorPoints": [
+                            {
+                              "x": 0.72, "y": 0.35, "count": 18,
+                              "severity": "CRITICAL", "errorType": "Timeout",
+                              "affectedUsersCount": 12, "blockRate": 100.0, "repeatCount": 4.5,
+                              "description": "Timeout 오류가 집중된 구간입니다.",
+                              "errorBreakdown": { "timeout": 2, "network": 0, "console": 0 },
+                              "issueId": "550e8400-e29b-41d4-a716-446655440001",
+                              "ageBand": "all"
+                            }
+                          ],
+                          "currentAgeGroup": "all",
+                          "pagination": {
+                            "totalCount": 3,
+                            "currentPage": 0,
+                            "pageSize": 100,
+                            "hasMore": false
                           }
                         }
                       ]
@@ -472,6 +472,7 @@ public class SimulationController {
                     """)
                     )
             ),
+            @ApiResponse(responseCode = "400", description = "잘못된 ageGroup 파라미터"),
             @ApiResponse(responseCode = "404", description = "해당 시뮬레이션 없음",
                     content = @Content(mediaType = "application/json",
                             examples = @ExampleObject(value = """
@@ -485,9 +486,23 @@ public class SimulationController {
     })
     public ResponseEntity<SimulationHeatmapResponse> getHeatmap(
             @Parameter(description = "조회할 시뮬레이션 ID", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
-            @PathVariable UUID simulationId
+            @PathVariable UUID simulationId,
+            @Parameter(description = "연령대 필터 (all, 10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대)", example = "all")
+            @RequestParam(defaultValue = "all") String ageGroup,
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "한 페이지당 오류점 수", example = "100")
+            @RequestParam(defaultValue = "100") int size
     ) {
-        return ResponseEntity.ok(simulationService.getHeatmap(simulationId));
+        validateAgeGroup(ageGroup);
+        return ResponseEntity.ok(simulationService.getHeatmap(simulationId, ageGroup, page, size));
+    }
+
+    private void validateAgeGroup(String ageGroup) {
+        Set<String> valid = Set.of("all", "10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대");
+        if (!valid.contains(ageGroup)) {
+            throw new IllegalArgumentException("Invalid ageGroup: " + ageGroup + ". 허용값: all, 10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대");
+        }
     }
 
     // ────────────────────────────────────────

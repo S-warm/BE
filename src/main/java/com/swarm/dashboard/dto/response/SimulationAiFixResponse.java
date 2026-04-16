@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Builder
@@ -60,13 +61,13 @@ public class SimulationAiFixResponse {
     @Schema(description = "개별 AI 수정 제안")
     public static class AiFixDto {
 
-        @Schema(description = "이슈 고유 ID (Issues 탭 issueId와 동일한 키)", example = "1")
-        private Long issueId;
+        @Schema(description = "이슈 고유 ID (Issues 탭 issueId와 동일한 키)", example = "550e8400-e29b-41d4-a716-446655440001")
+        private UUID issueId;
 
         @Schema(description = "이슈 제목", example = "입력 레이블이 낮은 대비율")
         private String title;
 
-        @Schema(description = "심각도. 허용값: High / Medium / Low", example = "High")
+        @Schema(description = "심각도. 허용값: CRITICAL / HIGH / MEDIUM / LOW", example = "HIGH")
         private String severity;
 
         @Schema(description = "영향받은 에이전트 수", example = "142")
@@ -78,14 +79,18 @@ public class SimulationAiFixResponse {
         @Schema(description = "AI 생성 수정 후 코드", example = ".form-label { color: #334155; font-size: 14px; font-weight: 500; }")
         private String afterCode;
 
+        // ✅ [M-1] DB 연동 시 매핑 주의:
+        //    AiFixSuggestion.impactSummary        → 이 필드(impactDescription)
+        //    AiFixSuggestion.changeSummaryBody    → 이 필드(changeDescription)
+        //    AiFixSuggestion.changeSummaryTitle   → 현재 미사용 (필요 시 title 또는 별도 필드로 노출)
         @Schema(
-                description = "수정 적용 시 영향 설명 (AI 생성)",
+                description = "수정 적용 시 영향 설명 (AI 생성). DB 컬럼: ai_fix_suggestions.impact_summary",
                 example = "142명의 사용자가 이제 레이블을 명확하게 읽을 수 있음"
         )
         private String impactDescription;
 
         @Schema(
-                description = "변경 내용 요약 (AI 생성, '무엇이 변경되었나요?' 섹션)",
+                description = "변경 내용 요약 (AI 생성, '무엇이 변경되었나요?' 섹션). DB 컬럼: ai_fix_suggestions.change_summary_body",
                 example = "레이블 색상을 #999999에서 #334155로 변경하여 대비율을 달성하고 WCAG의 표준을 충족합니다."
         )
         private String changeDescription;

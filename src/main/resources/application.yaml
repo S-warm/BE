@@ -19,5 +19,14 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  # ✅ [Jackson] 날짜 ISO 8601 포맷 보장 (타임스탬프 숫자 직렬화 방지)
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    time-zone: Asia/Seoul
+    date-format: "yyyy-MM-dd'T'HH:mm:ssXXX"
+
 server:
   port: 8080
