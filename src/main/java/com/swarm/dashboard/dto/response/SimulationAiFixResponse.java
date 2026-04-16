@@ -70,7 +70,8 @@ public class SimulationAiFixResponse {
         @Schema(description = "심각도. 허용값: CRITICAL / HIGH / MEDIUM / LOW", example = "HIGH")
         private String severity;
 
-        @Schema(description = "영향받은 에이전트 수", example = "142")
+        // ✅ DB 매핑: ai_fix_suggestions.impacted_users
+        @Schema(description = "영향받은 에이전트 수. DB 컬럼: ai_fix_suggestions.impacted_users", example = "142")
         private int affectedUsersCount;
 
         @Schema(description = "수정 전 코드", example = ".form-label { color: #999999; font-size: 14px; }")

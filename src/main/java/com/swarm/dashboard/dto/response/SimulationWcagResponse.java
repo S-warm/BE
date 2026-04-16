@@ -32,7 +32,9 @@ public class SimulationWcagResponse {
     @AllArgsConstructor
     @Schema(description = "WCAG 상단 요약 메트릭")
     public static class WcagSummaryDto {
-        @Schema(description = "WCAG 2.1 Level AA 준수 점수 (%). 계산: passedTests / totalTests * 100", example = "52.0")
+        // ✅ DB 매핑: wcag_results.compliance_score (DB는 INT, DTO는 double)
+        // ⚠️ DB 연동 시 Integer → double 캐스팅 필요: (double) wcagResult.getComplianceScore()
+        @Schema(description = "WCAG 2.1 Level AA 준수 점수 (%). 계산: passedTests / totalTests * 100. DB 컬럼: wcag_results.compliance_score (INT → double 변환)", example = "52.0")
         private double complianceScore;
         @Schema(description = "WCAG 준수 등급. 허용값: A / AA / AAA", example = "AA")
         private String wcagLabel;

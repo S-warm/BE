@@ -106,7 +106,18 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationOverviewResponse getOverview(UUID simulationId) {
-        // ✅ TODO: 실제 로그 집계 쿼리로 교체
+        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
+        // SimulationOverview overview = simulationOverviewRepository.findBySimulationId(simulationId)
+        //
+        // SummaryDto 조립 주의사항:
+        //   taskSuccessRate  = overview.getSuccessEventCount() / (double) overview.getTestedAgentCount() * 100
+        //   totalAgents      = overview.getTestedAgentCount()
+        //   avgCompletionSeconds = overview.getAvgCompletionMs() / 1000   ← ms → 초 변환 필수!
+        //   dropOffAgents    = overview.getTestedAgentCount() - overview.getSuccessEventCount()
+        //
+        // funnelPanels 조립:
+        //   simulation_pages + page_age_stats JOIN 후 page_order 오름차순 정렬
+        //   agentsByAge 키: page_age_stats.age_band (10대 / 20대 / ... / 80대)
         Simulation simulation = simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
         return buildMockOverview(simulation);
@@ -117,7 +128,18 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationIssuesResponse getIssues(UUID simulationId) {
-        // ✅ TODO: 실제 이슈 로그 데이터로 교체
+        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
+        // issues 테이블: simulation_id 기준 조회, page.page_order 오름차순 → severity 내림차순
+        //
+        // affectedUsersCount 조립 주의:
+        //   issues 테이블에 직접 없음 — issue_age_stats.affected_users SUM 집계 필요
+        //   SELECT SUM(affected_users) FROM issue_age_stats WHERE issue_id = ?
+        //
+        // affectedUsersPercent:
+        //   issue_age_stats.affected_percent 평균값 또는 (affectedUsersCount / totalAgents * 100)
+        //
+        // tags:
+        //   issues.tags 컬럼은 JSONB — Jackson ObjectMapper 또는 PostgreSQL JSONB 파싱 필요
         simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
         return buildMockIssues();
@@ -128,7 +150,14 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationAiFixResponse getAiFix(UUID simulationId) {
-        // ✅ TODO: 실제 AI 수정 데이터로 교체
+        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
+        // ai_fix_suggestions: simulation_id + issue_id JOIN
+        //
+        // AiFixDto 조립 주의:
+        //   issueId           = aiFixSuggestion.getIssue().getId()
+        //   affectedUsersCount = aiFixSuggestion.getImpactedUsers()   ← 필드명 다름!
+        //   impactDescription  = aiFixSuggestion.getImpactSummary()   ← 필드명 다름!
+        //   changeDescription  = aiFixSuggestion.getChangeSummaryBody() ← 필드명 다름!
         simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
         return buildMockAiFix();
@@ -139,7 +168,23 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationHeatmapResponse getHeatmap(UUID simulationId, String ageGroup, int page, int size) {
-        // ✅ TODO: 실제 히트맵 로그 데이터로 교체
+        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
+        // 데이터 소스: issue_age_stats 테이블
+        //   issue_id + age_band 기준 조회 (ageGroup 파라미터로 age_band 필터)
+        //
+        // ErrorPointDto 조립 주의:
+        //   x                 = issue_age_stats.coord_x (DECIMAL(6,4) → double)
+        //   y                 = issue_age_stats.coord_y (DECIMAL(6,4) → double)
+        //   affectedUsersCount = issue_age_stats.affected_users
+        //   blockRate         = issue_age_stats.block_rate (DECIMAL(5,2) → double)
+        //   repeatCount       = issue_age_stats.repeat_count (DECIMAL(5,2) → double)
+        //   errorType         = issue_age_stats.error_type
+        //   errorBreakdown    = timeout_count / network_count / console_count
+        //   ageBand           = issue_age_stats.age_band
+        //   issueId           = issue_age_stats.issue_id (PK 구성요소)
+        //
+        // severity 계산: count 기준 서버에서 계산 (1~3=LOW, 4~7=MEDIUM, 8~14=HIGH, 15+=CRITICAL)
+        // count = timeout_count + network_count + console_count
         simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
         return buildMockHeatmap(ageGroup, page, size);
@@ -150,7 +195,17 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationWcagResponse getWcag(UUID simulationId) {
-        // ✅ TODO: 실제 WCAG 검사 데이터로 교체
+        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
+        // 데이터 소스: wcag_results + wcag_issues JOIN
+        //
+        // WcagSummaryDto 조립 주의:
+        //   complianceScore = (double) wcagResult.getComplianceScore()  ← INT → double 캐스팅 필수
+        //   wcag_results는 page_id별로 여러 행 존재 → 시뮬레이션 단위 통합 필요
+        //   totalTests = SUM(total_tests), passedTests = SUM(passed_tests)
+        //
+        // WcagIssueDto:
+        //   wcagIssueId = wcagIssue.getId()
+        //   severity    = wcagIssue.getSeverity() → Critical / Moderate / Minor (WCAG 표준 용어 유지)
         simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
         return buildMockWcag();

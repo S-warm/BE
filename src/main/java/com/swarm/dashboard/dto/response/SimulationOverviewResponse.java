@@ -35,20 +35,26 @@ public class SimulationOverviewResponse {
     @Schema(description = "상단 요약 메트릭")
     public static class SummaryDto {
 
-        @Schema(description = "태스크 성공률 (%) = 최종 페이지 통과 수 / totalAgents * 100", example = "28.0")
+        // ✅ DB 매핑: simulation_overview.success_event_count / tested_agent_count * 100
+        @Schema(description = "태스크 성공률 (%) = success_event_count / tested_agent_count * 100. DB 컬럼: simulation_overview.conversion_rate 와 동일 개념.", example = "28.0")
         private double taskSuccessRate;
 
-        @Schema(description = "테스트 AI 사용자 총 수 (시뮬레이션 생성 시 설정한 personaCount)", example = "1000")
+        // ✅ DB 매핑: simulation_overview.tested_agent_count
+        @Schema(description = "테스트 AI 에이전트 총 수. DB 컬럼: simulation_overview.tested_agent_count", example = "1000")
         private int totalAgents;
 
+        // ✅ DB 매핑: simulation_overview.avg_completion_ms / 1000
+        // ⚠️ DB는 밀리초(ms) 저장 → 응답 시 /1000 변환 필수
         @Schema(
-                description = "평균 완료 시간 (초 단위). 최종 successCondition 달성 에이전트 기준." +
-                        " 프론트에서 분 변환: Math.floor(n/60) + '분' + (n%60) + '초'",
+                description = "평균 완료 시간 (초 단위). DB 컬럼: simulation_overview.avg_completion_ms 를 /1000 변환한 값." +
+                        " 최종 successCondition 달성 에이전트 기준." +
+                        " 프론트 표시: Math.floor(n/60) + '분' + (n%60) + '초'",
                 example = "252"
         )
         private int avgCompletionSeconds;
 
-        @Schema(description = "이탈 에이전트 수 = totalAgents - 최종 페이지 통과 수", example = "720")
+        // ✅ DB 매핑: simulation_overview.tested_agent_count - success_event_count (서버 계산)
+        @Schema(description = "이탈 에이전트 수 = tested_agent_count - success_event_count. 서버에서 계산하여 반환.", example = "720")
         private int dropOffAgents;
     }
 

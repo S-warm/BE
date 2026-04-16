@@ -153,19 +153,22 @@ public class SimulationController {
             시뮬레이션 완료 후 Overview 탭 데이터를 반환합니다.
 
             [헤더 정보 없음 - 프론트 처리 방식]
-            - simulationId, siteName, title, status, createdAt 은 이 API에 포함되지 않습니다.
+            - simulationId, title, status, createdAt 은 이 API에 포함되지 않습니다.
             - GET /api/simulations?userId={userId} 목록 응답에서 해당 simulationId로 find() 하여 재사용하세요.
 
             [summary - 상단 4개 메트릭 카드]
-            - taskSuccessRate      : 최종 페이지 통과 수 / totalAgents * 100 (%)
-            - totalAgents          : 시뮬레이션 생성 시 설정한 personaCount
-            - avgCompletionSeconds : 초 단위, 프론트 변환 예시 → Math.floor(n/60) + '분' + (n%60) + '초'
-            - dropOffAgents        : totalAgents - 최종 페이지 통과 수
+            - taskSuccessRate      : success_event_count / tested_agent_count * 100 (%)
+            - totalAgents          : simulation_overview.tested_agent_count
+            - avgCompletionSeconds : simulation_overview.avg_completion_ms / 1000 (ms → 초 변환)
+                                     프론트 표시: Math.floor(n/60) + '분' + (n%60) + '초'
+            - dropOffAgents        : tested_agent_count - success_event_count (서버 계산값)
 
             [funnelPanels - 전환 패널]
             - AI가 감지한 페이지 순서대로 동적 구성 (order 오름차순)
+            - 데이터 소스: page_age_stats 테이블 (page_id + age_band 기준 집계)
             - avgTimeSeconds : 해당 페이지 전체 평균 체류 시간 (초 단위)
-            - agentsByAge    : 고정 8개 키 (10-19 ~ 80+), ratio=0인 연령대도 entered=0으로 포함
+            - agentsByAge    : 고정 8개 키 (10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대 / 80대)
+                               ageRatioTeen/Fifty/Eighty가 0%인 연령대도 entered=0으로 포함
             - AgeGroupDto    : entered / passed / dropOff / successRate
             """
     )
@@ -194,14 +197,14 @@ public class SimulationController {
                           "panelSuccessRate": 85.0,
                           "avgTimeSeconds": 12,
                           "agentsByAge": {
-                            "10-19": { "entered": 50,  "passed": 48, "dropOff": 2,  "successRate": 96.0 },
-                            "20-29": { "entered": 300, "passed": 270,"dropOff": 30, "successRate": 90.0 },
-                            "30-39": { "entered": 250, "passed": 215,"dropOff": 35, "successRate": 86.0 },
-                            "40-49": { "entered": 200, "passed": 160,"dropOff": 40, "successRate": 80.0 },
-                            "50-59": { "entered": 100, "passed": 75, "dropOff": 25, "successRate": 75.0 },
-                            "60-69": { "entered": 70,  "passed": 50, "dropOff": 20, "successRate": 71.4 },
-                            "70-79": { "entered": 25,  "passed": 10, "dropOff": 15, "successRate": 40.0 },
-                            "80+":   { "entered": 5,   "passed": 1,  "dropOff": 4,  "successRate": 20.0 }
+                            "10대": { "entered": 50,  "passed": 48, "dropOff": 2,  "successRate": 96.0 },
+                            "20대": { "entered": 300, "passed": 270,"dropOff": 30, "successRate": 90.0 },
+                            "30대": { "entered": 250, "passed": 215,"dropOff": 35, "successRate": 86.0 },
+                            "40대": { "entered": 200, "passed": 160,"dropOff": 40, "successRate": 80.0 },
+                            "50대": { "entered": 100, "passed": 75, "dropOff": 25, "successRate": 75.0 },
+                            "60대": { "entered": 70,  "passed": 50, "dropOff": 20, "successRate": 71.4 },
+                            "70대": { "entered": 25,  "passed": 10, "dropOff": 15, "successRate": 40.0 },
+                            "80대": { "entered": 5,   "passed": 1,  "dropOff": 4,  "successRate": 20.0 }
                           }
                         }
                       ]
@@ -245,7 +248,7 @@ public class SimulationController {
             - screenshotUrl: AI 에이전트가 탐색 중 캡처한 스크린샷 URL
 
             [이슈 정렬]
-            - 페이지 order 오름차순 → 페이지 내 severity 높은 순 (High → Medium → Low)
+            - 페이지 order 오름차순 → 페이지 내 severity 높은 순 (CRITICAL → HIGH → MEDIUM → LOW)
 
             [AI 수정 탭 연동]
             - issueId 기준으로 GET /api/simulations/{id}/ai-fix 와 동일한 키로 연결
@@ -269,36 +272,36 @@ public class SimulationController {
                           "totalIssueCount": 3,
                           "issues": [
                             {
-                              "issueId": 1,
+                              "issueId": "aaaaaaaa-0000-0000-0000-000000000001",
                               "title": "입력 레이블이 낮은 대비율",
                               "category": "Accessibility",
-                              "severity": "High",
+                              "severity": "HIGH",
                               "affectedUsersCount": 142,
                               "affectedUsersPercent": 14.2,
                               "description": "흰색 배경 위의 회색 텍스트로 인해 WCAG 2.1 AA 기준(4.5:1) 미달",
-                              "selector": ".form-label",
+                              "targetHtml": ".form-label",
                               "tags": ["contrast", "wcag_aa"]
                             },
                             {
-                              "issueId": 2,
+                              "issueId": "aaaaaaaa-0000-0000-0000-000000000002",
                               "title": "제출 버튼이 키보드로 접근 불가",
                               "category": "Accessibility",
-                              "severity": "Medium",
+                              "severity": "MEDIUM",
                               "affectedUsersCount": 180,
                               "affectedUsersPercent": 18.0,
                               "description": "탭 키로 제출 버튼에 포커스가 되지 않아 키보드 전용 사용자 접근 불가",
-                              "selector": ".submit-btn",
+                              "targetHtml": ".submit-btn",
                               "tags": ["keyboard", "focus", "wcag_aa"]
                             },
                             {
-                              "issueId": 3,
+                              "issueId": "aaaaaaaa-0000-0000-0000-000000000003",
                               "title": "오류 메시지 노출 시간이 짧음",
                               "category": "Usability",
-                              "severity": "Low",
+                              "severity": "LOW",
                               "affectedUsersCount": 156,
                               "affectedUsersPercent": 15.6,
                               "description": "유효성 검사 실패 시 오류 메시지가 2초 이내 사라져 사용자가 인지하지 못함",
-                              "selector": ".error-message",
+                              "targetHtml": ".error-message",
                               "tags": ["timing", "feedback"]
                             }
                           ]
@@ -365,9 +368,9 @@ public class SimulationController {
                           "totalFixCount": 3,
                           "fixes": [
                             {
-                              "issueId": 1,
+                              "issueId": "aaaaaaaa-0000-0000-0000-000000000001",
                               "title": "입력 레이블이 낮은 대비율",
-                              "severity": "High",
+                              "severity": "HIGH",
                               "affectedUsersCount": 142,
                               "beforeCode": ".form-label {\\n  color: #999999;\\n  font-size: 14px;\\n}",
                               "afterCode": ".form-label {\\n  color: #334155;\\n  font-size: 14px;\\n  font-weight: 500;\\n}",
@@ -427,9 +430,10 @@ public class SimulationController {
             - pagination.hasMore 로 다음 페이지 존재 여부 확인
 
             [팝업 데이터]
-            - 좌표 클릭 시 팝업: severity / errorType / affectedCount / blockRate / repeatCount
+            - 좌표 클릭 시 팝업: severity / errorType / affectedUsersCount / blockRate / repeatCount
+            - 데이터 소스: issue_age_stats 테이블 (issue_id + age_band 기준)
             - errorBreakdown: timeout / network / console 세부 카운트
-            - issueId: Issues 탭 issueId와 동일한 키 (null 가능)
+            - issueId: Issues 탭 issueId와 동일한 키 (issue_age_stats.issue_id, null 가능)
             """
     )
     @ApiResponses({
