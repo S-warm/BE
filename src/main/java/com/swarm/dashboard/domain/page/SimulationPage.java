@@ -27,6 +27,10 @@ public class SimulationPage {
     @Column(name = "page_name", nullable = false)
     private String pageName;
 
+    // ✅ [추가] AI 에이전트가 탐색 중 실제 방문한 페이지 URL
+    @Column(name = "page_url", length = 1000)
+    private String pageUrl;
+
     @Column(name = "screenshot_path", length = 500)
     private String screenshotPath;
 

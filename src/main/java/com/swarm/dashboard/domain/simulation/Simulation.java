@@ -2,8 +2,7 @@ package com.swarm.dashboard.domain.simulation;
 
 import com.swarm.dashboard.domain.user.User;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -11,6 +10,8 @@ import java.util.UUID;
 @Table(name = "simulations")
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Simulation {
 
     @Id

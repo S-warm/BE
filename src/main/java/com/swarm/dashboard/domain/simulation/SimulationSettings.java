@@ -1,14 +1,15 @@
 package com.swarm.dashboard.domain.simulation;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import java.util.UUID;
 
 @Entity
 @Table(name = "simulation_settings")
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SimulationSettings {
 
     @Id

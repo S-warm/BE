@@ -1,5 +1,6 @@
 package com.swarm.dashboard.domain.fix;
 
+import com.swarm.dashboard.domain.issue.Issue;
 import com.swarm.dashboard.domain.page.SimulationPage;
 import com.swarm.dashboard.domain.simulation.Simulation;
 import jakarta.persistence.*;
@@ -26,6 +27,11 @@ public class AiFixSuggestion {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "page_id")
     private SimulationPage page;
+
+    // ✅ [추가] Issues 탭 연동 기준 FK — AiFixDto.issueId 의 실제 소스
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "issue_id")
+    private Issue issue;
 
     @Column
     private String title;
