@@ -72,6 +72,8 @@ public class SimulationService {
 
         // 2) SimulationSettings 저장 (simulation_id = saved.getId())
         // ✅ [M-2] visionImpairment, attentionLevel 추가 저장
+        // 2) SimulationSettings 저장 (simulation_id = saved.getId())
+        // ✅ [M-2] visionImpairment, attentionLevel 추가 저장
         SimulationSettings settings = SimulationSettings.builder()
                 .simulation(saved)
                 .digitalLiteracy(request.getDigitalLiteracy())
@@ -84,7 +86,29 @@ public class SimulationService {
                 .attentionLevel(request.getAttentionLevel())
                 .build();
 
-        simulationSettingsRepository.save(settings);
+        // 🔍 [DEBUG] SimulationSettings 저장 전 로깅
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("🔍 [SimulationSettings] 저장 시작");
+        System.out.println("=".repeat(80));
+        System.out.println("  simulation_id: " + settings.getSimulation().getId());
+        System.out.println("  digitalLiteracy: " + settings.getDigitalLiteracy());
+        System.out.println("  successCondition: " + settings.getSuccessCondition());
+        System.out.println("  personaDevice: " + settings.getPersonaDevice());
+        System.out.println("  ageRatioTeen: " + settings.getAgeRatioTeen());
+        System.out.println("  ageRatioFifty: " + settings.getAgeRatioFifty());
+        System.out.println("  ageRatioEighty: " + settings.getAgeRatioEighty());
+        System.out.println("  visionImpairment: " + settings.getVisionImpairment());
+        System.out.println("  attentionLevel: " + settings.getAttentionLevel());
+        System.out.println("=".repeat(80) + "\n");
+
+        SimulationSettings savedSettings = simulationSettingsRepository.save(settings);
+
+        // 🔍 [DEBUG] SimulationSettings 저장 후 로깅
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("✅ [SimulationSettings] 저장 완료!");
+        System.out.println("=".repeat(80));
+        System.out.println("  저장된 simulationId: " + savedSettings.getSimulationId());
+        System.out.println("=".repeat(80) + "\n");
 
         return SimulationCreateResponse.builder()
                 .id(saved.getId())
@@ -631,4 +655,16 @@ public class SimulationService {
                 .summary(SimulationWcagResponse.WcagSummaryDto.builder()
                         .complianceScore(52.0)   // (9 / totalTests 20) * 100 — 반올림
                         .wcagLabel("AA")
-                
+                        .totalTests(20)
+                        .passedTests(9)
+                        .foundIssues(allIssues.size())  // 14
+                        .build())
+                .distribution(SimulationWcagResponse.WcagDistributionDto.builder()
+                        .critical(4)
+                        .moderate(6)
+                        .minor(4)
+                        .build())
+                .issues(allIssues)
+                .build();
+    }
+}
