@@ -84,7 +84,35 @@ public class SimulationController {
             @RequestParam UUID userId,
             @Valid @RequestBody SimulationCreateRequest request
     ) {
+        // 🔍 [DEBUG] 요청 정보 로깅
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("📥 [SimulationController] createSimulation 요청 수신");
+        System.out.println("=".repeat(80));
+        System.out.println("  userId: " + userId);
+        System.out.println("  title: " + request.getTitle());
+        System.out.println("  targetUrl: " + request.getTargetUrl());
+        System.out.println("  personaCount: " + request.getPersonaCount());
+        System.out.println("  digitalLiteracy: " + request.getDigitalLiteracy());
+        System.out.println("  successCondition: " + request.getSuccessCondition());
+        System.out.println("  personaDevice: " + request.getPersonaDevice());
+        System.out.println("  ageRatioTeen: " + request.getAgeRatioTeen());
+        System.out.println("  ageRatioFifty: " + request.getAgeRatioFifty());
+        System.out.println("  ageRatioEighty: " + request.getAgeRatioEighty());
+        System.out.println("  visionImpairment: " + request.getVisionImpairment());
+        System.out.println("  attentionLevel: " + request.getAttentionLevel());
+        System.out.println("=".repeat(80) + "\n");
+
         SimulationCreateResponse response = simulationService.createSimulation(userId, request);
+
+        // 🔍 [DEBUG] 응답 정보 로깅
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("📤 [SimulationController] 응답 반환");
+        System.out.println("=".repeat(80));
+        System.out.println("  생성된 시뮬레이션 ID: " + response.getId());
+        System.out.println("  제목: " + response.getTitle());
+        System.out.println("  상태: " + response.getStatus());
+        System.out.println("=".repeat(80) + "\n");
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
