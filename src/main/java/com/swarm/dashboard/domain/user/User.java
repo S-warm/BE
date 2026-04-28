@@ -37,4 +37,5 @@ public class User {
     private OffsetDateTime createdAt;
 
     @Column(name = "updated_at")
-    private OffsetDateTime up
+    private OffsetDateTime updatedAt;
+}
