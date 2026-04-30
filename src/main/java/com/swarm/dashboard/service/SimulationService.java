@@ -35,6 +35,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +53,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @RequiredArgsConstructor
 public class SimulationService {
+    private static final UUID DEMO_USER_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+    private static final UUID DEMO_SIMULATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private final SimulationRepository simulationRepository;
     private final SimulationOverviewRepository simulationOverviewRepository;
@@ -65,6 +68,7 @@ public class SimulationService {
     private final WcagIssueRepository wcagIssueRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     // ────────────────────────────────────────
     // POST - 시뮬레이션 생성
@@ -103,13 +107,14 @@ public class SimulationService {
                 .build();
 
         SimulationSettings savedSettings = simulationSettingsRepository.save(settings);
+        boolean seededDemoResults = seedDemoResults(saved.getId(), request.getTargetUrl());
         log.info("Created simulation {} for user {}", saved.getId(), userId);
         log.debug("Stored simulation settings for simulation {}", savedSettings.getSimulationId());
 
         return SimulationCreateResponse.builder()
                 .id(saved.getId())
                 .title(saved.getTitle())
-                .status(saved.getStatus())
+                .status(seededDemoResults ? "completed" : saved.getStatus())
                 .createdAt(saved.getCreatedAt())
                 .build();
     }
@@ -292,23 +297,297 @@ public class SimulationService {
     }
 
     private User resolveUser(UUID userId) {
+        if (DEMO_USER_ID.equals(userId)) {
+            return userRepository.findById(userId)
+                    .orElseGet(() -> createFallbackUser(userId));
+        }
+
         return userRepository.findById(userId)
-                .orElseGet(() -> {
-                    OffsetDateTime now = OffsetDateTime.now();
-                    User newUser = new User();
-                    newUser.setId(userId);
-                    newUser.setUsername("user_" + userId.toString().substring(0, 8));
-                    newUser.setProvider("system");
-                    newUser.setCreatedAt(now);
-                    newUser.setUpdatedAt(now);
-                    log.warn("User {} not found. Creating development fallback user.", userId);
-                    return userRepository.save(newUser);
-                });
+                .orElseGet(() -> createFallbackUser(userId));
     }
 
     private Simulation getSimulationOrThrow(UUID simulationId) {
         return simulationRepository.findById(simulationId)
                 .orElseThrow(() -> new SimulationNotFoundException(simulationId));
+    }
+
+    private User createFallbackUser(UUID userId) {
+        OffsetDateTime now = OffsetDateTime.now();
+        User newUser = new User();
+        newUser.setId(userId);
+        newUser.setUsername("user_" + userId.toString().substring(0, 8));
+        newUser.setProvider("system");
+        newUser.setCreatedAt(now);
+        newUser.setUpdatedAt(now);
+        log.warn("User {} not found. Creating development fallback user.", userId);
+        return userRepository.save(newUser);
+    }
+
+    private boolean seedDemoResults(UUID simulationId, String targetUrl) {
+        Integer demoOverviewCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM simulation_overview WHERE simulation_id = ?",
+                Integer.class,
+                DEMO_SIMULATION_ID
+        );
+        if (demoOverviewCount == null || demoOverviewCount == 0) {
+            log.warn("Demo simulation {} has no overview data. Skipping demo result seeding.", DEMO_SIMULATION_ID);
+            return false;
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+
+        jdbcTemplate.update(
+                """
+                UPDATE simulations
+                SET status = ?, started_at = ?, completed_at = ?
+                WHERE id = ?
+                """,
+                "completed",
+                now.minusSeconds(90),
+                now,
+                simulationId
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO simulation_overview (
+                    simulation_id, conversion_rate, tested_agent_count, avg_completion_ms, success_event_count, updated_at
+                )
+                SELECT ?, conversion_rate, tested_agent_count, avg_completion_ms, success_event_count, ?
+                FROM simulation_overview
+                WHERE simulation_id = ?
+                ON CONFLICT (simulation_id) DO NOTHING
+                """,
+                simulationId,
+                now,
+                DEMO_SIMULATION_ID
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO simulation_pages (
+                    id, simulation_id, page_key, page_name, page_url, screenshot_path, viewport_width, viewport_height, page_order
+                )
+                SELECT
+                    gen_random_uuid(),
+                    ?,
+                    page_key,
+                    page_name,
+                    CASE
+                        WHEN page_key = 'landing' THEN ?
+                        ELSE CONCAT(?, COALESCE(SUBSTRING(page_url FROM 'https?://[^/]+(.*)$'), ''))
+                    END,
+                    screenshot_path,
+                    viewport_width,
+                    viewport_height,
+                    page_order
+                FROM simulation_pages
+                WHERE simulation_id = ?
+                ON CONFLICT (simulation_id, page_key) DO NOTHING
+                """,
+                simulationId,
+                targetUrl,
+                targetUrl,
+                DEMO_SIMULATION_ID
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO page_age_stats (
+                    id, page_id, age_band, success_rate, entered, passed, drop_off
+                )
+                SELECT
+                    gen_random_uuid(),
+                    new_page.id,
+                    stats.age_band,
+                    stats.success_rate,
+                    stats.entered,
+                    stats.passed,
+                    stats.drop_off
+                FROM page_age_stats stats
+                JOIN simulation_pages old_page ON old_page.id = stats.page_id
+                JOIN simulation_pages new_page
+                    ON new_page.simulation_id = ?
+                   AND new_page.page_key = old_page.page_key
+                WHERE old_page.simulation_id = ?
+                """,
+                simulationId,
+                DEMO_SIMULATION_ID
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO issues (
+                    id, simulation_id, page_id, tags, category, sub_category, severity, title, description, target_html,
+                    benefit_label, benefit_delta, created_at
+                )
+                SELECT
+                    gen_random_uuid(),
+                    ?,
+                    new_page.id,
+                    old_issue.tags,
+                    old_issue.category,
+                    old_issue.sub_category,
+                    old_issue.severity,
+                    old_issue.title,
+                    old_issue.description,
+                    old_issue.target_html,
+                    old_issue.benefit_label,
+                    old_issue.benefit_delta,
+                    ?
+                FROM issues old_issue
+                LEFT JOIN simulation_pages old_page ON old_page.id = old_issue.page_id
+                LEFT JOIN simulation_pages new_page
+                    ON new_page.simulation_id = ?
+                   AND new_page.page_key = old_page.page_key
+                WHERE old_issue.simulation_id = ?
+                """,
+                simulationId,
+                now,
+                simulationId,
+                DEMO_SIMULATION_ID
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO issue_age_stats (
+                    issue_id, age_band, coord_x, coord_y, scroll_y, affected_users, affected_percent, block_rate,
+                    repeat_count, error_type, timeout_count, network_count, console_count
+                )
+                SELECT
+                    new_issue.id,
+                    stats.age_band,
+                    stats.coord_x,
+                    stats.coord_y,
+                    stats.scroll_y,
+                    stats.affected_users,
+                    stats.affected_percent,
+                    stats.block_rate,
+                    stats.repeat_count,
+                    stats.error_type,
+                    stats.timeout_count,
+                    stats.network_count,
+                    stats.console_count
+                FROM issue_age_stats stats
+                JOIN issues old_issue ON old_issue.id = stats.issue_id
+                LEFT JOIN simulation_pages old_page ON old_page.id = old_issue.page_id
+                LEFT JOIN simulation_pages new_page
+                    ON new_page.simulation_id = ?
+                   AND new_page.page_key = old_page.page_key
+                JOIN issues new_issue
+                    ON new_issue.simulation_id = ?
+                   AND new_issue.title = old_issue.title
+                   AND (
+                        (new_issue.page_id IS NULL AND new_page.id IS NULL)
+                        OR new_issue.page_id = new_page.id
+                   )
+                WHERE old_issue.simulation_id = ?
+                """,
+                simulationId,
+                simulationId,
+                DEMO_SIMULATION_ID
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO wcag_results (
+                    id, simulation_id, page_id, compliance_score, wcag_label, passed_tests, total_tests, found_issues, created_at
+                )
+                SELECT
+                    gen_random_uuid(),
+                    ?,
+                    new_page.id,
+                    old_result.compliance_score,
+                    old_result.wcag_label,
+                    old_result.passed_tests,
+                    old_result.total_tests,
+                    old_result.found_issues,
+                    ?
+                FROM wcag_results old_result
+                JOIN simulation_pages old_page ON old_page.id = old_result.page_id
+                JOIN simulation_pages new_page
+                    ON new_page.simulation_id = ?
+                   AND new_page.page_key = old_page.page_key
+                WHERE old_result.simulation_id = ?
+                """,
+                simulationId,
+                now,
+                simulationId,
+                DEMO_SIMULATION_ID
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO wcag_issues (
+                    id, wcag_result_id, issue_no, title, severity, description
+                )
+                SELECT
+                    gen_random_uuid(),
+                    new_result.id,
+                    old_issue.issue_no,
+                    old_issue.title,
+                    old_issue.severity,
+                    old_issue.description
+                FROM wcag_issues old_issue
+                JOIN wcag_results old_result ON old_result.id = old_issue.wcag_result_id
+                JOIN simulation_pages old_page ON old_page.id = old_result.page_id
+                JOIN simulation_pages new_page
+                    ON new_page.simulation_id = ?
+                   AND new_page.page_key = old_page.page_key
+                JOIN wcag_results new_result
+                    ON new_result.simulation_id = ?
+                   AND new_result.page_id = new_page.id
+                WHERE old_result.simulation_id = ?
+                """,
+                simulationId,
+                simulationId,
+                DEMO_SIMULATION_ID
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO ai_fix_suggestions (
+                    id, simulation_id, page_id, issue_id, title, severity, before_code, after_code,
+                    impact_summary, change_summary_title, change_summary_body, impacted_users, created_at
+                )
+                SELECT
+                    gen_random_uuid(),
+                    ?,
+                    new_page.id,
+                    new_issue.id,
+                    old_fix.title,
+                    old_fix.severity,
+                    old_fix.before_code,
+                    old_fix.after_code,
+                    old_fix.impact_summary,
+                    old_fix.change_summary_title,
+                    old_fix.change_summary_body,
+                    old_fix.impacted_users,
+                    ?
+                FROM ai_fix_suggestions old_fix
+                LEFT JOIN simulation_pages old_page ON old_page.id = old_fix.page_id
+                LEFT JOIN simulation_pages new_page
+                    ON new_page.simulation_id = ?
+                   AND new_page.page_key = old_page.page_key
+                LEFT JOIN issues old_issue ON old_issue.id = old_fix.issue_id
+                LEFT JOIN issues new_issue
+                    ON new_issue.simulation_id = ?
+                   AND new_issue.title = old_issue.title
+                   AND (
+                        (new_issue.page_id IS NULL AND new_page.id IS NULL)
+                        OR new_issue.page_id = new_page.id
+                   )
+                WHERE old_fix.simulation_id = ?
+                """,
+                simulationId,
+                now,
+                simulationId,
+                simulationId,
+                DEMO_SIMULATION_ID
+        );
+
+        log.info("Seeded demo result data for simulation {}", simulationId);
+        return true;
     }
 
     private static final String[] AGE_KEYS = {
