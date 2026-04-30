@@ -10,18 +10,34 @@ import com.swarm.dashboard.dto.response.SimulationListResponse;
 import com.swarm.dashboard.dto.response.SimulationOverviewResponse;
 import com.swarm.dashboard.dto.response.SimulationWcagResponse;
 import com.swarm.dashboard.domain.simulation.Simulation;
+import com.swarm.dashboard.domain.simulation.SimulationOverview;
+import com.swarm.dashboard.domain.simulation.SimulationOverviewRepository;
 import com.swarm.dashboard.domain.simulation.SimulationRepository;
 import com.swarm.dashboard.domain.simulation.SimulationSettings;
 import com.swarm.dashboard.domain.simulation.SimulationSettingsRepository;
+import com.swarm.dashboard.domain.page.PageAgeStats;
+import com.swarm.dashboard.domain.page.PageAgeStatsRepository;
+import com.swarm.dashboard.domain.page.SimulationPage;
+import com.swarm.dashboard.domain.page.SimulationPageRepository;
+import com.swarm.dashboard.domain.issue.Issue;
+import com.swarm.dashboard.domain.issue.IssueAgeStats;
+import com.swarm.dashboard.domain.issue.IssueAgeStatsRepository;
+import com.swarm.dashboard.domain.issue.IssueRepository;
+import com.swarm.dashboard.domain.fix.AiFixSuggestion;
+import com.swarm.dashboard.domain.fix.AiFixSuggestionRepository;
 import com.swarm.dashboard.domain.user.User;
 import com.swarm.dashboard.domain.user.UserRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +50,15 @@ import java.util.stream.Collectors;
 public class SimulationService {
 
     private final SimulationRepository simulationRepository;
+    private final SimulationOverviewRepository simulationOverviewRepository;
     private final SimulationSettingsRepository simulationSettingsRepository;
+    private final SimulationPageRepository simulationPageRepository;
+    private final PageAgeStatsRepository pageAgeStatsRepository;
+    private final IssueRepository issueRepository;
+    private final IssueAgeStatsRepository issueAgeStatsRepository;
+    private final AiFixSuggestionRepository aiFixSuggestionRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     // ────────────────────────────────────────
     // POST - 시뮬레이션 생성
@@ -107,7 +130,30 @@ public class SimulationService {
     @Transactional(readOnly = true)
     public SimulationOverviewResponse getOverview(UUID simulationId) {
         Simulation simulation = getSimulationOrThrow(simulationId);
-        return buildMockOverview(simulation);
+        SimulationOverview overview = simulationOverviewRepository.findBySimulationId(simulationId)
+                .orElseThrow(() -> new SimulationNotFoundException(simulationId));
+
+        List<SimulationOverviewResponse.FunnelPanelDto> funnelPanels = simulationPageRepository
+                .findBySimulationIdOrderByPageOrder(simulationId)
+                .stream()
+                .map(this::buildOverviewPanel)
+                .toList();
+
+        int testedAgentCount = defaultInt(overview.getTestedAgentCount());
+        int successEventCount = defaultInt(overview.getSuccessEventCount());
+        double successRate = testedAgentCount == 0
+                ? defaultDecimal(overview.getConversionRate())
+                : roundToOneDecimal((successEventCount * 100.0) / testedAgentCount);
+
+        return SimulationOverviewResponse.builder()
+                .summary(SimulationOverviewResponse.SummaryDto.builder()
+                        .taskSuccessRate(successRate)
+                        .totalAgents(testedAgentCount)
+                        .avgCompletionSeconds(defaultInt(overview.getAvgCompletionMs()) / 1000)
+                        .dropOffAgents(Math.max(0, testedAgentCount - successEventCount))
+                        .build())
+                .funnelPanels(funnelPanels)
+                .build();
     }
 
     // ────────────────────────────────────────
@@ -116,7 +162,21 @@ public class SimulationService {
     @Transactional(readOnly = true)
     public SimulationIssuesResponse getIssues(UUID simulationId) {
         getSimulationOrThrow(simulationId);
-        return buildMockIssues();
+
+        List<SimulationPage> pages = simulationPageRepository.findBySimulationIdOrderByPageOrder(simulationId);
+        List<Issue> issues = issueRepository.findBySimulationId(simulationId);
+        Map<UUID, List<Issue>> issuesByPageId = issues.stream()
+                .filter(issue -> issue.getPage() != null)
+                .collect(Collectors.groupingBy(issue -> issue.getPage().getId()));
+
+        List<SimulationIssuesResponse.IssuePageDto> issuePages = pages.stream()
+                .map(page -> buildIssuePage(page, issuesByPageId.getOrDefault(page.getId(), List.of())))
+                .filter(page -> !page.getIssues().isEmpty())
+                .toList();
+
+        return SimulationIssuesResponse.builder()
+                .pages(issuePages)
+                .build();
     }
 
     // ────────────────────────────────────────
@@ -125,7 +185,20 @@ public class SimulationService {
     @Transactional(readOnly = true)
     public SimulationAiFixResponse getAiFix(UUID simulationId) {
         getSimulationOrThrow(simulationId);
-        return buildMockAiFix();
+        List<SimulationPage> pages = simulationPageRepository.findBySimulationIdOrderByPageOrder(simulationId);
+        List<AiFixSuggestion> fixes = aiFixSuggestionRepository.findBySimulationId(simulationId);
+        Map<UUID, List<AiFixSuggestion>> fixesByPageId = fixes.stream()
+                .filter(fix -> fix.getPage() != null)
+                .collect(Collectors.groupingBy(fix -> fix.getPage().getId()));
+
+        List<SimulationAiFixResponse.AiFixPageDto> aiFixPages = pages.stream()
+                .map(page -> buildAiFixPage(page, fixesByPageId.getOrDefault(page.getId(), List.of())))
+                .filter(page -> !page.getFixes().isEmpty())
+                .toList();
+
+        return SimulationAiFixResponse.builder()
+                .pages(aiFixPages)
+                .build();
     }
 
     // ────────────────────────────────────────
@@ -166,73 +239,194 @@ public class SimulationService {
                 .orElseThrow(() -> new SimulationNotFoundException(simulationId));
     }
 
-    // ================================================================
-    // ✅ TODO: 실제 로그 데이터 연동 후 아래 Mock 메서드 전체 삭제 후 교체
-    // ================================================================
-
-    // ────────────────────────────────────────
-    // Mock - Overview
-    // ────────────────────────────────────────
-    private SimulationOverviewResponse buildMockOverview(Simulation simulation) {
-        List<SimulationOverviewResponse.FunnelPanelDto> funnelPanels = List.of(
-                SimulationOverviewResponse.FunnelPanelDto.builder()
-                        .order(1).pageName("랜딩 페이지")
-                        .pageUrl(simulation.getTargetUrl())
-                        .totalEntered(1000).totalPassed(850).panelSuccessRate(85.0).avgTimeSeconds(12)
-                        .agentsByAge(buildMockAgeGroup(
-                                new int[]{50, 300, 250, 200, 100, 70, 25, 5},
-                                new int[]{48, 270, 215, 160,  75, 50, 10, 1}))
-                        .build(),
-                SimulationOverviewResponse.FunnelPanelDto.builder()
-                        .order(2).pageName("로그인 폼")
-                        .pageUrl(simulation.getTargetUrl() + "/login")
-                        .totalEntered(850).totalPassed(600).panelSuccessRate(70.6).avgTimeSeconds(25)
-                        .agentsByAge(buildMockAgeGroup(
-                                new int[]{48, 270, 215, 160,  75, 50, 10, 1},
-                                new int[]{45, 240, 170, 100,  40, 20,  3, 0}))
-                        .build(),
-                SimulationOverviewResponse.FunnelPanelDto.builder()
-                        .order(3).pageName("필드 입력")
-                        .pageUrl(simulation.getTargetUrl() + "/login/input")
-                        .totalEntered(600).totalPassed(400).panelSuccessRate(66.7).avgTimeSeconds(40)
-                        .agentsByAge(buildMockAgeGroup(
-                                new int[]{45, 240, 170, 100,  40, 20,  3, 0},
-                                new int[]{43, 210, 130,  60,  22,  8,  1, 0}))
-                        .build(),
-                SimulationOverviewResponse.FunnelPanelDto.builder()
-                        .order(4).pageName("유효성 검사")
-                        .pageUrl(simulation.getTargetUrl() + "/login/validate")
-                        .totalEntered(400).totalPassed(280).panelSuccessRate(70.0).avgTimeSeconds(18)
-                        .agentsByAge(buildMockAgeGroup(
-                                new int[]{43, 210, 130,  60,  22,  8,  1, 0},
-                                new int[]{40, 180, 100,  40,  12,  5,  0, 0}))
-                        .build()
-        );
-        return SimulationOverviewResponse.builder()
-                .summary(SimulationOverviewResponse.SummaryDto.builder()
-                        .taskSuccessRate(28.0).totalAgents(1000)
-                        .avgCompletionSeconds(252).dropOffAgents(720).build())
-                .funnelPanels(funnelPanels)
-                .build();
-    }
-
-    // ✅ [ageBand 통일] Heatmap ageGroup 파라미터와 동일한 한국어 형식 사용
     private static final String[] AGE_KEYS = {
             "10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대"
     };
 
-    private Map<String, SimulationOverviewResponse.AgeGroupDto> buildMockAgeGroup(
-            int[] entered, int[] passed) {
+    private SimulationOverviewResponse.FunnelPanelDto buildOverviewPanel(SimulationPage page) {
+        List<PageAgeStats> stats = pageAgeStatsRepository.findByPageId(page.getId());
+        Map<String, SimulationOverviewResponse.AgeGroupDto> agentsByAge = buildAgeGroup(stats);
+
+        int totalEntered = stats.stream().map(PageAgeStats::getEntered).mapToInt(this::defaultInt).sum();
+        int totalPassed = stats.stream().map(PageAgeStats::getPassed).mapToInt(this::defaultInt).sum();
+
+        return SimulationOverviewResponse.FunnelPanelDto.builder()
+                .order(defaultInt(page.getPageOrder()))
+                .pageName(page.getPageName())
+                .pageUrl(page.getPageUrl() != null ? page.getPageUrl() : "")
+                .totalEntered(totalEntered)
+                .totalPassed(totalPassed)
+                .panelSuccessRate(totalEntered == 0 ? 0.0 : roundToOneDecimal((totalPassed * 100.0) / totalEntered))
+                .avgTimeSeconds(estimateAverageTimeSeconds(page.getPageOrder()))
+                .agentsByAge(agentsByAge)
+                .build();
+    }
+
+    private Map<String, SimulationOverviewResponse.AgeGroupDto> buildAgeGroup(
+            List<PageAgeStats> stats) {
+        Map<String, PageAgeStats> statsByAgeBand = stats.stream()
+                .sorted(Comparator.comparing(PageAgeStats::getAgeBand))
+                .collect(Collectors.toMap(
+                        PageAgeStats::getAgeBand,
+                        stat -> stat,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
         Map<String, SimulationOverviewResponse.AgeGroupDto> map = new LinkedHashMap<>();
-        for (int i = 0; i < AGE_KEYS.length; i++) {
-            int dropOff = entered[i] - passed[i];
-            double rate = entered[i] == 0 ? 0.0
-                    : Math.round((passed[i] * 1000.0 / entered[i])) / 10.0;
-            map.put(AGE_KEYS[i], SimulationOverviewResponse.AgeGroupDto.builder()
-                    .entered(entered[i]).passed(passed[i]).dropOff(dropOff).successRate(rate)
+        for (String ageKey : AGE_KEYS) {
+            PageAgeStats stat = statsByAgeBand.get(ageKey);
+            int entered = stat != null ? defaultInt(stat.getEntered()) : 0;
+            int passed = stat != null ? defaultInt(stat.getPassed()) : 0;
+            int dropOff = stat != null ? defaultInt(stat.getDropOff()) : Math.max(0, entered - passed);
+            double successRate = stat != null && stat.getSuccessRate() != null
+                    ? stat.getSuccessRate().doubleValue()
+                    : entered == 0 ? 0.0 : roundToOneDecimal((passed * 100.0) / entered);
+
+            map.put(ageKey, SimulationOverviewResponse.AgeGroupDto.builder()
+                    .entered(entered)
+                    .passed(passed)
+                    .dropOff(dropOff)
+                    .successRate(successRate)
                     .build());
         }
         return map;
+    }
+
+    private int estimateAverageTimeSeconds(Integer pageOrder) {
+        if (pageOrder == null) {
+            return 0;
+        }
+
+        return switch (pageOrder) {
+            case 1 -> 12;
+            case 2 -> 25;
+            case 3 -> 40;
+            case 4 -> 18;
+            default -> 15;
+        };
+    }
+
+    private int defaultInt(Integer value) {
+        return value != null ? value : 0;
+    }
+
+    private double defaultDecimal(BigDecimal value) {
+        return value != null ? value.doubleValue() : 0.0;
+    }
+
+    private double roundToOneDecimal(double value) {
+        return Math.round(value * 10.0) / 10.0;
+    }
+
+    private SimulationIssuesResponse.IssuePageDto buildIssuePage(
+            SimulationPage page,
+            List<Issue> pageIssues
+    ) {
+        List<SimulationIssuesResponse.IssueDto> issues = pageIssues.stream()
+                .sorted(Comparator
+                        .comparingInt((Issue issue) -> severityRank(issue.getSeverity()))
+                        .thenComparing(Issue::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::buildIssueDto)
+                .toList();
+
+        return SimulationIssuesResponse.IssuePageDto.builder()
+                .order(defaultInt(page.getPageOrder()))
+                .pageName(page.getPageName())
+                .pageUrl(page.getPageUrl() != null ? page.getPageUrl() : "")
+                .screenshotUrl(page.getScreenshotPath() != null ? page.getScreenshotPath() : "")
+                .totalIssueCount(issues.size())
+                .issues(issues)
+                .build();
+    }
+
+    private SimulationIssuesResponse.IssueDto buildIssueDto(Issue issue) {
+        List<IssueAgeStats> ageStats = issueAgeStatsRepository.findByIssueId(issue.getId());
+        int affectedUsersCount = ageStats.stream()
+                .map(IssueAgeStats::getAffectedUsers)
+                .mapToInt(this::defaultInt)
+                .sum();
+        double affectedUsersPercent = ageStats.isEmpty()
+                ? 0.0
+                : roundToOneDecimal(ageStats.stream()
+                .map(IssueAgeStats::getAffectedPercent)
+                .filter(value -> value != null)
+                .mapToDouble(BigDecimal::doubleValue)
+                .average()
+                .orElse(0.0));
+
+        return SimulationIssuesResponse.IssueDto.builder()
+                .issueId(issue.getId())
+                .title(issue.getTitle())
+                .category(issue.getCategory() != null ? issue.getCategory() : "")
+                .severity(issue.getSeverity() != null ? issue.getSeverity() : "LOW")
+                .affectedUsersCount(affectedUsersCount)
+                .affectedUsersPercent(affectedUsersPercent)
+                .description(issue.getDescription() != null ? issue.getDescription() : "")
+                .targetHtml(issue.getTargetHtml() != null ? issue.getTargetHtml() : "")
+                .tags(parseTags(issue.getTags()))
+                .build();
+    }
+
+    private int severityRank(String severity) {
+        if (severity == null) {
+            return Integer.MAX_VALUE;
+        }
+
+        return switch (severity) {
+            case "CRITICAL" -> 0;
+            case "HIGH" -> 1;
+            case "MEDIUM" -> 2;
+            case "LOW" -> 3;
+            default -> 4;
+        };
+    }
+
+    private List<String> parseTags(String rawTags) {
+        if (rawTags == null || rawTags.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            return objectMapper.readValue(rawTags, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            log.warn("Failed to parse issue tags: {}", rawTags, e);
+            return List.of();
+        }
+    }
+
+    private SimulationAiFixResponse.AiFixPageDto buildAiFixPage(
+            SimulationPage page,
+            List<AiFixSuggestion> pageFixes
+    ) {
+        List<SimulationAiFixResponse.AiFixDto> fixes = pageFixes.stream()
+                .sorted(Comparator
+                        .comparingInt((AiFixSuggestion fix) -> severityRank(fix.getSeverity()))
+                        .thenComparing(AiFixSuggestion::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::buildAiFixDto)
+                .toList();
+
+        return SimulationAiFixResponse.AiFixPageDto.builder()
+                .order(defaultInt(page.getPageOrder()))
+                .pageName(page.getPageName())
+                .pageUrl(page.getPageUrl() != null ? page.getPageUrl() : "")
+                .screenshotUrl(page.getScreenshotPath() != null ? page.getScreenshotPath() : "")
+                .totalFixCount(fixes.size())
+                .fixes(fixes)
+                .build();
+    }
+
+    private SimulationAiFixResponse.AiFixDto buildAiFixDto(AiFixSuggestion fix) {
+        return SimulationAiFixResponse.AiFixDto.builder()
+                .issueId(fix.getIssue() != null ? fix.getIssue().getId() : null)
+                .title(fix.getTitle() != null ? fix.getTitle() : "")
+                .severity(fix.getSeverity() != null ? fix.getSeverity() : "LOW")
+                .affectedUsersCount(defaultInt(fix.getImpactedUsers()))
+                .beforeCode(fix.getBeforeCode() != null ? fix.getBeforeCode() : "")
+                .afterCode(fix.getAfterCode() != null ? fix.getAfterCode() : "")
+                .impactDescription(fix.getImpactSummary() != null ? fix.getImpactSummary() : "")
+                .changeDescription(fix.getChangeSummaryBody() != null ? fix.getChangeSummaryBody() : "")
+                .build();
     }
 
     // ────────────────────────────────────────
@@ -290,44 +484,6 @@ public class SimulationService {
                                 .order(2).pageName("메인 페이지").pageUrl("https://a-mall.com/")
                                 .screenshotUrl("https://storage.example.com/screenshots/sim42_page2.png")
                                 .totalIssueCount(page2Issues.size()).issues(page2Issues).build()
-                )).build();
-    }
-
-    // ────────────────────────────────────────
-    // Mock - AI Fix
-    // ────────────────────────────────────────
-    private SimulationAiFixResponse buildMockAiFix() {
-        // ✅ [C-1] Issues와 동일한 Mock UUID 재사용 (issueId 연동 기준 키)
-        UUID mockIssueId1 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000001");
-        UUID mockIssueId2 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000002");
-        UUID mockIssueId3 = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000003");
-
-        List<SimulationAiFixResponse.AiFixDto> page1Fixes = List.of(
-                SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(mockIssueId1).title("입력 레이블이 낮은 대비율").severity("HIGH").affectedUsersCount(142)
-                        .beforeCode(".form-label {\n  color: #999999;\n  font-size: 14px;\n  margin-bottom: 8px;\n}")
-                        .afterCode(".form-label {\n  color: #334155;\n  font-size: 14px;\n  margin-bottom: 8px;\n  font-weight: 500;\n}")
-                        .impactDescription("142명의 사용자가 이제 레이블을 명확하게 읽을 수 있음")
-                        .changeDescription("레이블 색상을 #999999에서 #334155로 변경하여 대비율을 달성하고 WCAG의 표준을 충족합니다.").build(),
-                SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(mockIssueId2).title("제출 버튼이 키보드로 접근 불가").severity("MEDIUM").affectedUsersCount(180)
-                        .beforeCode(".submit-btn {\n  outline: none;\n}")
-                        .afterCode(".submit-btn {\n  outline: 2px solid #334155;\n  outline-offset: 2px;\n}")
-                        .impactDescription("180명의 키보드 사용자가 버튼에 접근 가능해짐")
-                        .changeDescription("outline: none 제거 후 명시적 포커스 스타일을 추가하여 키보드 접근성을 확보합니다.").build(),
-                SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(mockIssueId3).title("오류 메시지 노출 시간이 짧음").severity("LOW").affectedUsersCount(156)
-                        .beforeCode(".error-message {\n  display: none;\n  animation: fadeOut 2s ease;\n}")
-                        .afterCode(".error-message {\n  display: block;\n  animation: fadeOut 5s ease;\n}")
-                        .impactDescription("156명의 사용자가 오류 메시지를 충분한 시간 동안 인지할 수 있음")
-                        .changeDescription("오류 메시지 노출 시간을 2초에서 5초로 늘려 사용자가 내용을 확인할 수 있도록 개선합니다.").build()
-        );
-        return SimulationAiFixResponse.builder()
-                .pages(List.of(
-                        SimulationAiFixResponse.AiFixPageDto.builder()
-                                .order(1).pageName("로그인 페이지").pageUrl("https://a-mall.com/login")
-                                .screenshotUrl("https://storage.example.com/screenshots/sim42_page1.png")
-                                .totalFixCount(page1Fixes.size()).fixes(page1Fixes).build()
                 )).build();
     }
 
