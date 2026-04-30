@@ -1,8 +1,10 @@
 spring:
   datasource:
-    url: jdbc:postgresql://127.0.0.1:5433/swarmDB
-    username: swarm
-    password: "0000"
+    # Docker 실행 시 → DB_HOST=postgres, DB_PORT=5432 (docker-compose env)
+    # 로컬 실행 시 → 기본값 127.0.0.1:5433 으로 폴백
+    url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5433}/${DB_NAME:swarmDB}
+    username: ${DB_USERNAME:swarm}
+    password: ${DB_PASSWORD:0000}
     driver-class-name: org.postgresql.Driver
 
   jpa:

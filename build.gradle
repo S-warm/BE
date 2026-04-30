@@ -27,7 +27,7 @@ dependencies {
     // Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
-    // Security (검증 우회용)
+    // Security (검증 우회용 — SecurityConfig 에서 permitAll 처리)
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
     // JPA
@@ -51,5 +51,13 @@ dependencies {
     // Validation (@Valid, @NotBlank 등)
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-    //swagger(OpenAPI)
-    implementatio
+    // Swagger (OpenAPI)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+
+    // Spring Boot 실행 시 docker-compose 자동 기동 (PDF 권장 — 개발 편의)
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
