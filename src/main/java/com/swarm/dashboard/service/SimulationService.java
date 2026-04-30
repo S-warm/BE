@@ -1,5 +1,6 @@
 package com.swarm.dashboard.service;
 
+import com.swarm.dashboard.exception.SimulationNotFoundException;
 import com.swarm.dashboard.dto.request.SimulationCreateRequest;
 import com.swarm.dashboard.dto.response.SimulationAiFixResponse;
 import com.swarm.dashboard.dto.response.SimulationCreateResponse;
@@ -15,6 +16,7 @@ import com.swarm.dashboard.domain.simulation.SimulationSettingsRepository;
 import com.swarm.dashboard.domain.user.User;
 import com.swarm.dashboard.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class SimulationService {
 
@@ -39,26 +42,14 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional
     public SimulationCreateResponse createSimulation(UUID userId, SimulationCreateRequest request) {
-        // 유저 존재 여부 확인 - 없으면 자동 생성 (검증 우회)
-        User user = userRepository.findById(userId)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setId(userId);
-                    newUser.setUsername("user_" + userId.toString().substring(0, 8));
-                    newUser.setProvider("system");
-                    newUser.setCreatedAt(java.time.OffsetDateTime.now());
-                    newUser.setUpdatedAt(java.time.OffsetDateTime.now());
-                    return userRepository.save(newUser);
-                });
+        User user = resolveUser(userId);
 
-        // ✅ [M-4] 연령대 비율 합계 검증
         int ratioSum = request.getAgeRatioTeen() + request.getAgeRatioFifty() + request.getAgeRatioEighty();
         if (ratioSum != 100) {
             throw new IllegalArgumentException(
                     "연령대 비율 합계는 100이어야 합니다. 현재 합계: " + ratioSum);
         }
 
-        // 1) Simulation 먼저 저장 (settings는 @MapsId라 FK 필요)
         Simulation simulation = Simulation.builder()
                 .user(user)
                 .title(request.getTitle())
@@ -70,10 +61,6 @@ public class SimulationService {
 
         Simulation saved = simulationRepository.save(simulation);
 
-        // 2) SimulationSettings 저장 (simulation_id = saved.getId())
-        // ✅ [M-2] visionImpairment, attentionLevel 추가 저장
-        // 2) SimulationSettings 저장 (simulation_id = saved.getId())
-        // ✅ [M-2] visionImpairment, attentionLevel 추가 저장
         SimulationSettings settings = SimulationSettings.builder()
                 .simulation(saved)
                 .digitalLiteracy(request.getDigitalLiteracy())
@@ -86,29 +73,9 @@ public class SimulationService {
                 .attentionLevel(request.getAttentionLevel())
                 .build();
 
-        // 🔍 [DEBUG] SimulationSettings 저장 전 로깅
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("🔍 [SimulationSettings] 저장 시작");
-        System.out.println("=".repeat(80));
-        System.out.println("  simulation_id: " + settings.getSimulation().getId());
-        System.out.println("  digitalLiteracy: " + settings.getDigitalLiteracy());
-        System.out.println("  successCondition: " + settings.getSuccessCondition());
-        System.out.println("  personaDevice: " + settings.getPersonaDevice());
-        System.out.println("  ageRatioTeen: " + settings.getAgeRatioTeen());
-        System.out.println("  ageRatioFifty: " + settings.getAgeRatioFifty());
-        System.out.println("  ageRatioEighty: " + settings.getAgeRatioEighty());
-        System.out.println("  visionImpairment: " + settings.getVisionImpairment());
-        System.out.println("  attentionLevel: " + settings.getAttentionLevel());
-        System.out.println("=".repeat(80) + "\n");
-
         SimulationSettings savedSettings = simulationSettingsRepository.save(settings);
-
-        // 🔍 [DEBUG] SimulationSettings 저장 후 로깅
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("✅ [SimulationSettings] 저장 완료!");
-        System.out.println("=".repeat(80));
-        System.out.println("  저장된 simulationId: " + savedSettings.getSimulationId());
-        System.out.println("=".repeat(80) + "\n");
+        log.info("Created simulation {} for user {}", saved.getId(), userId);
+        log.debug("Stored simulation settings for simulation {}", savedSettings.getSimulationId());
 
         return SimulationCreateResponse.builder()
                 .id(saved.getId())
@@ -139,20 +106,7 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationOverviewResponse getOverview(UUID simulationId) {
-        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
-        // SimulationOverview overview = simulationOverviewRepository.findBySimulationId(simulationId)
-        //
-        // SummaryDto 조립 주의사항:
-        //   taskSuccessRate  = overview.getSuccessEventCount() / (double) overview.getTestedAgentCount() * 100
-        //   totalAgents      = overview.getTestedAgentCount()
-        //   avgCompletionSeconds = overview.getAvgCompletionMs() / 1000   ← ms → 초 변환 필수!
-        //   dropOffAgents    = overview.getTestedAgentCount() - overview.getSuccessEventCount()
-        //
-        // funnelPanels 조립:
-        //   simulation_pages + page_age_stats JOIN 후 page_order 오름차순 정렬
-        //   agentsByAge 키: page_age_stats.age_band (10대 / 20대 / ... / 80대)
-        Simulation simulation = simulationRepository.findById(simulationId)
-                .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
+        Simulation simulation = getSimulationOrThrow(simulationId);
         return buildMockOverview(simulation);
     }
 
@@ -161,20 +115,7 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationIssuesResponse getIssues(UUID simulationId) {
-        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
-        // issues 테이블: simulation_id 기준 조회, page.page_order 오름차순 → severity 내림차순
-        //
-        // affectedUsersCount 조립 주의:
-        //   issues 테이블에 직접 없음 — issue_age_stats.affected_users SUM 집계 필요
-        //   SELECT SUM(affected_users) FROM issue_age_stats WHERE issue_id = ?
-        //
-        // affectedUsersPercent:
-        //   issue_age_stats.affected_percent 평균값 또는 (affectedUsersCount / totalAgents * 100)
-        //
-        // tags:
-        //   issues.tags 컬럼은 JSONB — Jackson ObjectMapper 또는 PostgreSQL JSONB 파싱 필요
-        simulationRepository.findById(simulationId)
-                .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
+        getSimulationOrThrow(simulationId);
         return buildMockIssues();
     }
 
@@ -183,16 +124,7 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationAiFixResponse getAiFix(UUID simulationId) {
-        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
-        // ai_fix_suggestions: simulation_id + issue_id JOIN
-        //
-        // AiFixDto 조립 주의:
-        //   issueId           = aiFixSuggestion.getIssue().getId()
-        //   affectedUsersCount = aiFixSuggestion.getImpactedUsers()   ← 필드명 다름!
-        //   impactDescription  = aiFixSuggestion.getImpactSummary()   ← 필드명 다름!
-        //   changeDescription  = aiFixSuggestion.getChangeSummaryBody() ← 필드명 다름!
-        simulationRepository.findById(simulationId)
-                .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
+        getSimulationOrThrow(simulationId);
         return buildMockAiFix();
     }
 
@@ -201,25 +133,7 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationHeatmapResponse getHeatmap(UUID simulationId, String ageGroup, int page, int size) {
-        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
-        // 데이터 소스: issue_age_stats 테이블
-        //   issue_id + age_band 기준 조회 (ageGroup 파라미터로 age_band 필터)
-        //
-        // ErrorPointDto 조립 주의:
-        //   x                 = issue_age_stats.coord_x (DECIMAL(6,4) → double)
-        //   y                 = issue_age_stats.coord_y (DECIMAL(6,4) → double)
-        //   affectedUsersCount = issue_age_stats.affected_users
-        //   blockRate         = issue_age_stats.block_rate (DECIMAL(5,2) → double)
-        //   repeatCount       = issue_age_stats.repeat_count (DECIMAL(5,2) → double)
-        //   errorType         = issue_age_stats.error_type
-        //   errorBreakdown    = timeout_count / network_count / console_count
-        //   ageBand           = issue_age_stats.age_band
-        //   issueId           = issue_age_stats.issue_id (PK 구성요소)
-        //
-        // severity 계산: count 기준 서버에서 계산 (1~3=LOW, 4~7=MEDIUM, 8~14=HIGH, 15+=CRITICAL)
-        // count = timeout_count + network_count + console_count
-        simulationRepository.findById(simulationId)
-                .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
+        getSimulationOrThrow(simulationId);
         return buildMockHeatmap(ageGroup, page, size);
     }
 
@@ -228,20 +142,28 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional(readOnly = true)
     public SimulationWcagResponse getWcag(UUID simulationId) {
-        // TODO: 실제 DB 연동 시 아래 쿼리로 교체
-        // 데이터 소스: wcag_results + wcag_issues JOIN
-        //
-        // WcagSummaryDto 조립 주의:
-        //   complianceScore = (double) wcagResult.getComplianceScore()  ← INT → double 캐스팅 필수
-        //   wcag_results는 page_id별로 여러 행 존재 → 시뮬레이션 단위 통합 필요
-        //   totalTests = SUM(total_tests), passedTests = SUM(passed_tests)
-        //
-        // WcagIssueDto:
-        //   wcagIssueId = wcagIssue.getId()
-        //   severity    = wcagIssue.getSeverity() → Critical / Moderate / Minor (WCAG 표준 용어 유지)
-        simulationRepository.findById(simulationId)
-                .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + simulationId));
+        getSimulationOrThrow(simulationId);
         return buildMockWcag();
+    }
+
+    private User resolveUser(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseGet(() -> {
+                    OffsetDateTime now = OffsetDateTime.now();
+                    User newUser = new User();
+                    newUser.setId(userId);
+                    newUser.setUsername("user_" + userId.toString().substring(0, 8));
+                    newUser.setProvider("system");
+                    newUser.setCreatedAt(now);
+                    newUser.setUpdatedAt(now);
+                    log.warn("User {} not found. Creating development fallback user.", userId);
+                    return userRepository.save(newUser);
+                });
+    }
+
+    private Simulation getSimulationOrThrow(UUID simulationId) {
+        return simulationRepository.findById(simulationId)
+                .orElseThrow(() -> new SimulationNotFoundException(simulationId));
     }
 
     // ================================================================

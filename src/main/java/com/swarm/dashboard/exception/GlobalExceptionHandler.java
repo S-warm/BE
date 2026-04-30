@@ -53,15 +53,17 @@ public class GlobalExceptionHandler {
     // ────────────────────────────────────────
     // 404 — 리소스 없음 (시뮬레이션, 사용자 등)
     // ────────────────────────────────────────
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponse> handleRuntime(
-            RuntimeException e, HttpServletRequest request) {
-        String msg = e.getMessage() != null ? e.getMessage() : "요청을 처리할 수 없습니다.";
-        if (msg.contains("찾을 수 없습니다")) {
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(ErrorResponse.of(404, "Not Found", msg, request.getRequestURI()));
-        }
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException e, HttpServletRequest request) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of(404, "Not Found", e.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(
+            Exception e, HttpServletRequest request) {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(500, "Internal Server Error", "서버 오류가 발생했습니다.", request.getRequestURI()));

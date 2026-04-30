@@ -1,4 +1,7 @@
 spring:
+  docker:
+    compose:
+      enabled: ${SPRING_DOCKER_COMPOSE_ENABLED:false}
   datasource:
     # Docker 실행 시 → DB_HOST=postgres, DB_PORT=5432 (docker-compose env)
     # 로컬 실행 시 → 기본값 127.0.0.1:5433 으로 폴백
