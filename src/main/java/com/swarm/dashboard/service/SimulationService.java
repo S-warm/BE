@@ -92,7 +92,7 @@ public class SimulationService {
                 .createdAt(OffsetDateTime.now())
                 .build();
 
-        Simulation saved = simulationRepository.save(simulation);
+        Simulation saved = simulationRepository.saveAndFlush(simulation);
 
         SimulationSettings settings = SimulationSettings.builder()
                 .simulation(saved)
