@@ -1,11 +1,14 @@
 package com.swarm.dashboard.domain.issue;
 
+import com.swarm.dashboard.config.StringListConverter;
 import com.swarm.dashboard.domain.page.SimulationPage;
+
 import com.swarm.dashboard.domain.simulation.Simulation;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -27,8 +30,9 @@ public class Issue {
     @JoinColumn(name = "page_id")
     private SimulationPage page;
 
+    @Convert(converter = StringListConverter.class)
     @Column(columnDefinition = "jsonb")
-    private String tags;
+    private List<String> tags;
 
     @Column(length = 50)
     private String category;
@@ -36,8 +40,9 @@ public class Issue {
     @Column(name = "sub_category", length = 100)
     private String subCategory;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String severity;
+    private IssueSeverity severity;
 
     @Column
     private String title;

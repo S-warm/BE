@@ -29,9 +29,6 @@ public class Simulation {
     @Column(name = "target_url", nullable = false, length = 1000)
     private String targetUrl;
 
-    @Column(name = "persona_count")
-    private Integer personaCount;
-
     @Column(length = 20)
     private String status;
 

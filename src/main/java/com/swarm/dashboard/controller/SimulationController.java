@@ -84,35 +84,7 @@ public class SimulationController {
             @RequestParam UUID userId,
             @Valid @RequestBody SimulationCreateRequest request
     ) {
-        // 🔍 [DEBUG] 요청 정보 로깅
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("📥 [SimulationController] createSimulation 요청 수신");
-        System.out.println("=".repeat(80));
-        System.out.println("  userId: " + userId);
-        System.out.println("  title: " + request.getTitle());
-        System.out.println("  targetUrl: " + request.getTargetUrl());
-        System.out.println("  personaCount: " + request.getPersonaCount());
-        System.out.println("  digitalLiteracy: " + request.getDigitalLiteracy());
-        System.out.println("  successCondition: " + request.getSuccessCondition());
-        System.out.println("  personaDevice: " + request.getPersonaDevice());
-        System.out.println("  ageRatioTeen: " + request.getAgeRatioTeen());
-        System.out.println("  ageRatioFifty: " + request.getAgeRatioFifty());
-        System.out.println("  ageRatioEighty: " + request.getAgeRatioEighty());
-        System.out.println("  visionImpairment: " + request.getVisionImpairment());
-        System.out.println("  attentionLevel: " + request.getAttentionLevel());
-        System.out.println("=".repeat(80) + "\n");
-
         SimulationCreateResponse response = simulationService.createSimulation(userId, request);
-
-        // 🔍 [DEBUG] 응답 정보 로깅
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("📤 [SimulationController] 응답 반환");
-        System.out.println("=".repeat(80));
-        System.out.println("  생성된 시뮬레이션 ID: " + response.getId());
-        System.out.println("  제목: " + response.getTitle());
-        System.out.println("  상태: " + response.getStatus());
-        System.out.println("=".repeat(80) + "\n");
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -572,44 +544,36 @@ public class SimulationController {
                             schema = @Schema(implementation = SimulationWcagResponse.class),
                             examples = @ExampleObject(value = """
                     {
-                      "pages": [
+                      "summary": {
+                        "complianceScore": 52.0,
+                        "wcagLabel": "AA",
+                        "totalTests": 20,
+                        "passedTests": 9,
+                        "foundIssues": 14
+                      },
+                      "distribution": {
+                        "critical": 4,
+                        "moderate": 6,
+                        "minor": 4
+                      },
+                      "issues": [
                         {
-                          "order": 1,
-                          "pageName": "로그인 페이지",
-                          "pageUrl": "https://a-mall.com/login",
-                          "screenshotUrl": "https://storage.example.com/screenshots/sim42_page1.png",
-                          "summary": {
-                            "complianceScore": 38.0,
-                            "wcagLabel": "AA",
-                            "totalTests": 10,
-                            "passedTests": 3,
-                            "foundIssues": 10
-                          },
-                          "distribution": {
-                            "critical": 3,
-                            "moderate": 4,
-                            "minor": 3
-                          },
-                          "issues": [
-                            {
-                              "wcagIssueId": 1,
-                              "title": "텍스트 대비율",
-                              "severity": "Critical",
-                              "description": "본문/보조 텍스트의 대비가 WCAG 2.1 AA 기준을 충족하지 않아 저시력 사용자의 가독성이 저하됩니다."
-                            },
-                            {
-                              "wcagIssueId": 2,
-                              "title": "최소 글자 크기",
-                              "severity": "Moderate",
-                              "description": "일부 텍스트가 12px 이하로 표시되어 읽기 어려울 수 있습니다."
-                            },
-                            {
-                              "wcagIssueId": 3,
-                              "title": "위치 수정",
-                              "severity": "Minor",
-                              "description": "일부 UI 요소의 위치가 사용자 예상 동선과 다르게 배치되어 탐색 혼란을 유발할 수 있습니다."
-                            }
-                          ]
+                          "wcagIssueId": "bbbbbbbb-0000-0000-0000-000000000001",
+                          "title": "텍스트 대비율",
+                          "severity": "Critical",
+                          "description": "본문/보조 텍스트의 대비가 WCAG 2.1 AA 기준을 충족하지 않아 저시력 사용자의 가독성이 저하됩니다."
+                        },
+                        {
+                          "wcagIssueId": "bbbbbbbb-0000-0000-0000-000000000005",
+                          "title": "최소 글자 크기",
+                          "severity": "Moderate",
+                          "description": "일부 텍스트가 12px 이하로 표시되어 읽기 어려울 수 있습니다."
+                        },
+                        {
+                          "wcagIssueId": "bbbbbbbb-0000-0000-0000-000000000011",
+                          "title": "위치 수정",
+                          "severity": "Minor",
+                          "description": "일부 UI 요소의 위치가 사용자 예상 동선과 다르게 배치되어 탐색 혼란을 유발할 수 있습니다."
                         }
                       ]
                     }

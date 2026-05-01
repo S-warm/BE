@@ -6,7 +6,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.swarm.dashboard.domain.wcag.WcagSeverity;
 import java.util.List;
+import java.util.UUID;
 
 // ✅ 문제 3 B안 — 페이지별 구조 → 시뮬레이션 단위 단일 구조로 변경
 // WcagPageDto 래퍼 제거, summary / distribution / issues 직접 노출
@@ -66,12 +68,12 @@ public class SimulationWcagResponse {
     @AllArgsConstructor
     @Schema(description = "WCAG 개별 이슈")
     public static class WcagIssueDto {
-        @Schema(description = "WCAG 이슈 고유 ID", example = "1")
-        private Long wcagIssueId;
+        @Schema(description = "WCAG 이슈 고유 ID", example = "550e8400-e29b-41d4-a716-446655440001")
+        private UUID wcagIssueId;
         @Schema(description = "이슈 제목", example = "텍스트 대비율")
         private String title;
         @Schema(description = "심각도. 허용값: Critical / Moderate / Minor", example = "Critical")
-        private String severity;
+        private WcagSeverity severity;
         @Schema(description = "이슈 설명 (자세히 보기 펼침 시 노출). AI 생성.", example = "본문/보조 텍스트의 대비가 WCAG 2.1 AA 기준을 충족하지 않아 저시력 사용자의 가독성이 저하됩니다.")
         private String description;
     }

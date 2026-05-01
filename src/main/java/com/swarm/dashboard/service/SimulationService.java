@@ -12,8 +12,10 @@ import com.swarm.dashboard.domain.simulation.Simulation;
 import com.swarm.dashboard.domain.simulation.SimulationRepository;
 import com.swarm.dashboard.domain.simulation.SimulationSettings;
 import com.swarm.dashboard.domain.simulation.SimulationSettingsRepository;
+import com.swarm.dashboard.domain.issue.IssueSeverity;
 import com.swarm.dashboard.domain.user.User;
 import com.swarm.dashboard.domain.user.UserRepository;
+import com.swarm.dashboard.domain.wcag.WcagSeverity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,31 +41,14 @@ public class SimulationService {
     // ────────────────────────────────────────
     @Transactional
     public SimulationCreateResponse createSimulation(UUID userId, SimulationCreateRequest request) {
-        // 유저 존재 여부 확인 - 없으면 자동 생성 (검증 우회)
         User user = userRepository.findById(userId)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setId(userId);
-                    newUser.setUsername("user_" + userId.toString().substring(0, 8));
-                    newUser.setProvider("system");
-                    newUser.setCreatedAt(java.time.OffsetDateTime.now());
-                    newUser.setUpdatedAt(java.time.OffsetDateTime.now());
-                    return userRepository.save(newUser);
-                });
-
-        // ✅ [M-4] 연령대 비율 합계 검증
-        int ratioSum = request.getAgeRatioTeen() + request.getAgeRatioFifty() + request.getAgeRatioEighty();
-        if (ratioSum != 100) {
-            throw new IllegalArgumentException(
-                    "연령대 비율 합계는 100이어야 합니다. 현재 합계: " + ratioSum);
-        }
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다. id=" + userId));
 
         // 1) Simulation 먼저 저장 (settings는 @MapsId라 FK 필요)
         Simulation simulation = Simulation.builder()
                 .user(user)
                 .title(request.getTitle())
                 .targetUrl(request.getTargetUrl())
-                .personaCount(request.getPersonaCount())
                 .status("pending")
                 .createdAt(OffsetDateTime.now())
                 .build();
@@ -71,44 +56,23 @@ public class SimulationService {
         Simulation saved = simulationRepository.save(simulation);
 
         // 2) SimulationSettings 저장 (simulation_id = saved.getId())
-        // ✅ [M-2] visionImpairment, attentionLevel 추가 저장
-        // 2) SimulationSettings 저장 (simulation_id = saved.getId())
-        // ✅ [M-2] visionImpairment, attentionLevel 추가 저장
         SimulationSettings settings = SimulationSettings.builder()
                 .simulation(saved)
                 .digitalLiteracy(request.getDigitalLiteracy())
                 .successCondition(request.getSuccessCondition())
                 .personaDevice(request.getPersonaDevice())
-                .ageRatioTeen(request.getAgeRatioTeen())
-                .ageRatioFifty(request.getAgeRatioFifty())
-                .ageRatioEighty(request.getAgeRatioEighty())
+                .ageCount10(request.getAgeCount10())
+                .ageCount20(request.getAgeCount20())
+                .ageCount30(request.getAgeCount30())
+                .ageCount40(request.getAgeCount40())
+                .ageCount50(request.getAgeCount50())
+                .ageCount60(request.getAgeCount60())
+                .ageCount70(request.getAgeCount70())
                 .visionImpairment(request.getVisionImpairment())
                 .attentionLevel(request.getAttentionLevel())
                 .build();
 
-        // 🔍 [DEBUG] SimulationSettings 저장 전 로깅
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("🔍 [SimulationSettings] 저장 시작");
-        System.out.println("=".repeat(80));
-        System.out.println("  simulation_id: " + settings.getSimulation().getId());
-        System.out.println("  digitalLiteracy: " + settings.getDigitalLiteracy());
-        System.out.println("  successCondition: " + settings.getSuccessCondition());
-        System.out.println("  personaDevice: " + settings.getPersonaDevice());
-        System.out.println("  ageRatioTeen: " + settings.getAgeRatioTeen());
-        System.out.println("  ageRatioFifty: " + settings.getAgeRatioFifty());
-        System.out.println("  ageRatioEighty: " + settings.getAgeRatioEighty());
-        System.out.println("  visionImpairment: " + settings.getVisionImpairment());
-        System.out.println("  attentionLevel: " + settings.getAttentionLevel());
-        System.out.println("=".repeat(80) + "\n");
-
-        SimulationSettings savedSettings = simulationSettingsRepository.save(settings);
-
-        // 🔍 [DEBUG] SimulationSettings 저장 후 로깅
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("✅ [SimulationSettings] 저장 완료!");
-        System.out.println("=".repeat(80));
-        System.out.println("  저장된 simulationId: " + savedSettings.getSimulationId());
-        System.out.println("=".repeat(80) + "\n");
+        simulationSettingsRepository.save(settings);
 
         return SimulationCreateResponse.builder()
                 .id(saved.getId())
@@ -326,19 +290,19 @@ public class SimulationService {
 
         List<SimulationIssuesResponse.IssueDto> page1Issues = List.of(
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(mockIssueId1).title("입력 레이블이 낮은 대비율").category("Accessibility").severity("HIGH")
+                        .issueId(mockIssueId1).title("입력 레이블이 낮은 대비율").category("Accessibility").severity(IssueSeverity.HIGH)
                         .affectedUsersCount(142).affectedUsersPercent(14.2)
                         .description("흰색 배경 위의 회색 텍스트로 인해 WCAG 2.1 AA 기준(4.5:1) 미달")
                         .targetHtml(".form-label")
                         .tags(List.of("contrast", "wcag_aa")).build(),
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(mockIssueId2).title("제출 버튼이 키보드로 접근 불가").category("Accessibility").severity("MEDIUM")
+                        .issueId(mockIssueId2).title("제출 버튼이 키보드로 접근 불가").category("Accessibility").severity(IssueSeverity.MEDIUM)
                         .affectedUsersCount(180).affectedUsersPercent(18.0)
                         .description("탭 키로 제출 버튼에 포커스가 되지 않아 키보드 전용 사용자 접근 불가")
                         .targetHtml(".submit-btn")
                         .tags(List.of("keyboard", "focus", "wcag_aa")).build(),
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(mockIssueId3).title("오류 메시지 노출 시간이 짧음").category("Usability").severity("LOW")
+                        .issueId(mockIssueId3).title("오류 메시지 노출 시간이 짧음").category("Usability").severity(IssueSeverity.LOW)
                         .affectedUsersCount(156).affectedUsersPercent(15.6)
                         .description("유효성 검사 실패 시 오류 메시지가 2초 이내 사라져 사용자가 인지하지 못함")
                         .targetHtml(".error-message")
@@ -346,13 +310,13 @@ public class SimulationService {
         );
         List<SimulationIssuesResponse.IssueDto> page2Issues = List.of(
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(mockIssueId4).title("배너 이미지 alt 텍스트 누락").category("Accessibility").severity("HIGH")
+                        .issueId(mockIssueId4).title("배너 이미지 alt 텍스트 누락").category("Accessibility").severity(IssueSeverity.HIGH)
                         .affectedUsersCount(210).affectedUsersPercent(21.0)
                         .description("메인 배너 이미지에 alt 속성이 없어 스크린리더 사용자 접근 불가")
                         .targetHtml(".main-banner img")
                         .tags(List.of("alt", "wcag_aa", "screen-reader")).build(),
                 SimulationIssuesResponse.IssueDto.builder()
-                        .issueId(mockIssueId5).title("모바일 터치 영역 너무 작음").category("Usability").severity("MEDIUM")
+                        .issueId(mockIssueId5).title("모바일 터치 영역 너무 작음").category("Usability").severity(IssueSeverity.MEDIUM)
                         .affectedUsersCount(95).affectedUsersPercent(9.5)
                         .description("하단 네비게이션 버튼의 터치 영역이 24px로 권장 최소값(44px) 미달")
                         .targetHtml(".nav-btn")
@@ -382,19 +346,19 @@ public class SimulationService {
 
         List<SimulationAiFixResponse.AiFixDto> page1Fixes = List.of(
                 SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(mockIssueId1).title("입력 레이블이 낮은 대비율").severity("HIGH").affectedUsersCount(142)
+                        .issueId(mockIssueId1).title("입력 레이블이 낮은 대비율").severity(IssueSeverity.HIGH).affectedUsersCount(142)
                         .beforeCode(".form-label {\n  color: #999999;\n  font-size: 14px;\n  margin-bottom: 8px;\n}")
                         .afterCode(".form-label {\n  color: #334155;\n  font-size: 14px;\n  margin-bottom: 8px;\n  font-weight: 500;\n}")
                         .impactDescription("142명의 사용자가 이제 레이블을 명확하게 읽을 수 있음")
                         .changeDescription("레이블 색상을 #999999에서 #334155로 변경하여 대비율을 달성하고 WCAG의 표준을 충족합니다.").build(),
                 SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(mockIssueId2).title("제출 버튼이 키보드로 접근 불가").severity("MEDIUM").affectedUsersCount(180)
+                        .issueId(mockIssueId2).title("제출 버튼이 키보드로 접근 불가").severity(IssueSeverity.MEDIUM).affectedUsersCount(180)
                         .beforeCode(".submit-btn {\n  outline: none;\n}")
                         .afterCode(".submit-btn {\n  outline: 2px solid #334155;\n  outline-offset: 2px;\n}")
                         .impactDescription("180명의 키보드 사용자가 버튼에 접근 가능해짐")
                         .changeDescription("outline: none 제거 후 명시적 포커스 스타일을 추가하여 키보드 접근성을 확보합니다.").build(),
                 SimulationAiFixResponse.AiFixDto.builder()
-                        .issueId(mockIssueId3).title("오류 메시지 노출 시간이 짧음").severity("LOW").affectedUsersCount(156)
+                        .issueId(mockIssueId3).title("오류 메시지 노출 시간이 짧음").severity(IssueSeverity.LOW).affectedUsersCount(156)
                         .beforeCode(".error-message {\n  display: none;\n  animation: fadeOut 2s ease;\n}")
                         .afterCode(".error-message {\n  display: block;\n  animation: fadeOut 5s ease;\n}")
                         .impactDescription("156명의 사용자가 오류 메시지를 충분한 시간 동안 인지할 수 있음")
@@ -605,48 +569,48 @@ public class SimulationService {
         List<SimulationWcagResponse.WcagIssueDto> allIssues = List.of(
                 // ── Critical (4건) ──
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(1L).title("텍스트 대비율").severity("Critical")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000001")).title("텍스트 대비율").severity(WcagSeverity.Critical)
                         .description("본문/보조 텍스트의 대비가 WCAG 2.1 AA 기준을 충족하지 않아, 저시력 사용자의 가독성이 크게 저하됩니다. 대비(명도 차이)를 높이거나 배경색을 조정해 최소 대비율을 만족하도록 개선하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(2L).title("키보드 포커스 표시 없음").severity("Critical")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000002")).title("키보드 포커스 표시 없음").severity(WcagSeverity.Critical)
                         .description("키보드로 탐색 시 포커스 인디케이터가 표시되지 않아 키보드 전용 사용자가 현재 위치를 파악할 수 없습니다. outline 스타일을 명시적으로 지정하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(3L).title("폼 레이블 연결 누락").severity("Critical")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000003")).title("폼 레이블 연결 누락").severity(WcagSeverity.Critical)
                         .description("입력 필드에 연결된 레이블이 없어 스크린리더 사용자가 필드의 목적을 알 수 없습니다. label 태그 또는 aria-label 속성을 추가하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(11L).title("이미지 대체 텍스트 누락").severity("Critical")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000004")).title("이미지 대체 텍스트 누락").severity(WcagSeverity.Critical)
                         .description("배너 이미지에 alt 속성이 없어 스크린리더 사용자가 콘텐츠를 인식할 수 없습니다. 모든 의미 있는 이미지에 적절한 대체 텍스트를 제공하세요.").build(),
                 // ── Moderate (6건) ──
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(4L).title("최소 글자 크기").severity("Moderate")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000005")).title("최소 글자 크기").severity(WcagSeverity.Moderate)
                         .description("일부 설명 텍스트가 12px 이하로 표시되어 읽기 어려울 수 있습니다. 기본 폰트 크기 및 line-height를 상향해 가독성을 개선하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(5L).title("버튼 클릭 영역 부족").severity("Moderate")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000006")).title("버튼 클릭 영역 부족").severity(WcagSeverity.Moderate)
                         .description("일부 버튼의 클릭/터치 영역이 24px로 권장 최소값(44px)에 미달합니다. padding을 추가하여 터치 영역을 확보하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(6L).title("오류 메시지 접근성").severity("Moderate")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000007")).title("오류 메시지 접근성").severity(WcagSeverity.Moderate)
                         .description("오류 발생 시 aria-live 속성이 없어 스크린리더가 오류 메시지를 자동으로 읽지 않습니다. role=alert 또는 aria-live=assertive를 추가하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(7L).title("링크 텍스트 불명확").severity("Moderate")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000008")).title("링크 텍스트 불명확").severity(WcagSeverity.Moderate)
                         .description("'여기를 클릭' 같은 불명확한 링크 텍스트는 스크린리더 사용자에게 링크 목적을 전달하지 못합니다. 링크 목적을 명확히 하는 텍스트로 변경하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(12L).title("키보드 포커스 순서").severity("Moderate")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000009")).title("키보드 포커스 순서").severity(WcagSeverity.Moderate)
                         .description("탭 키 탐색 시 포커스 순서가 시각적 레이아웃과 일치하지 않아 키보드 사용자에게 혼란을 줄 수 있습니다. tabindex를 정리하거나 DOM 순서를 조정하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(13L).title("제목 계층 구조 오류").severity("Moderate")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000010")).title("제목 계층 구조 오류").severity(WcagSeverity.Moderate)
                         .description("h1 → h3으로 건너뛰는 제목 계층 구조는 스크린리더 탐색을 방해합니다. 순차적인 제목 계층을 유지하세요.").build(),
                 // ── Minor (4건) ──
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(8L).title("위치 수정").severity("Minor")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000011")).title("위치 수정").severity(WcagSeverity.Minor)
                         .description("일부 UI 요소의 위치가 사용자 예상 동선과 다르게 배치되어 탐색 혼란을 유발할 수 있습니다. 일관된 레이아웃 패턴을 적용하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(9L).title("색상만으로 정보 전달").severity("Minor")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000012")).title("색상만으로 정보 전달").severity(WcagSeverity.Minor)
                         .description("오류 상태를 색상만으로 표시하면 색맹 사용자가 인지하기 어렵습니다. 아이콘 또는 텍스트를 함께 사용하세요.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(10L).title("자동 재생 미디어").severity("Minor")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000013")).title("자동 재생 미디어").severity(WcagSeverity.Minor)
                         .description("자동 재생되는 미디어가 있을 경우 일시 정지 또는 음소거 컨트롤을 제공해야 합니다.").build(),
                 SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(14L).title("언어 속성 누락").severity("Minor")
+                        .wcagIssueId(UUID.fromString("bbbbbbbb-0000-0000-0000-000000000014")).title("언어 속성 누락").severity(WcagSeverity.Minor)
                         .description("HTML lang 속성이 없어 스크린리더가 올바른 언어로 콘텐츠를 읽지 못할 수 있습니다. lang=ko를 추가하세요.").build()
         );
 

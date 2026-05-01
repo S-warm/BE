@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.UUID;
 
+
 @Entity
 @Table(name = "wcag_issues")
 @Getter
@@ -26,8 +27,9 @@ public class WcagIssue {
     @Column
     private String title;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String severity;
+    private WcagSeverity severity;
 
     @Column(columnDefinition = "TEXT")
     private String description;
