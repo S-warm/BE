@@ -20,7 +20,4 @@ public interface IssueAgeStatsRepository extends JpaRepository<IssueAgeStats, Is
     @Query("SELECT ias FROM IssueAgeStats ias JOIN FETCH ias.issue i JOIN FETCH i.page p WHERE p.simulation.id = :simulationId AND ias.id.ageBand = :ageBand")
     List<IssueAgeStats> findBySimulationIdAndAgeBand(UUID simulationId, String ageBand);
 
-    // 이슈별 affected_users 합산 (Issues 탭 affectedUsersCount 계산용)
-    @Query("SELECT COALESCE(SUM(ias.affectedUsers), 0) FROM IssueAgeStats ias WHERE ias.id.issueId = :issueId")
-    Integer sumAffectedUsersByIssueId(UUID issueId);
 }

@@ -60,7 +60,7 @@ public class SimulationService {
     private final WcagIssueRepository wcagIssueRepository;
     private final UserRepository userRepository;
 
-    private static final String[] AGE_BANDS = {"10대", "20대", "30대", "40대", "50대", "60대", "70대"};
+    private static final List<String> AGE_BANDS = List.of("10대", "20대", "30대", "40대", "50대", "60대", "70대");
 
     // ────────────────────────────────────────
     // POST - 시뮬레이션 생성
@@ -162,6 +162,8 @@ public class SimulationService {
                         .entered(0).passed(0).dropOff(0).successRate(0.0).build());
             }
             for (PageAgeStats stats : ageStatsList) {
+                // AGE_BANDS 범위 외 데이터(예: 80대) 필터링
+                if (!AGE_BANDS.contains(stats.getAgeBand())) continue;
                 int entered = stats.getEntered() != null ? stats.getEntered() : 0;
                 int passed = stats.getPassed() != null ? stats.getPassed() : 0;
                 int dropOff = entered - passed;
