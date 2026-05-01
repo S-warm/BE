@@ -56,7 +56,7 @@ INSERT INTO simulation_settings (
 )
 VALUES (
     'aaaaaaaa-2222-2222-2222-000000000001',
-    50, 150, 200, 200, 150, 100, 50,
+    50, 150, 200, 200, 200, 150, 50,
     'medium', 20, 70,
     'desktop', '결제 완료 페이지 도달'
 )
@@ -95,7 +95,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO simulation_overview (simulation_id, tested_agent_count, avg_completion_ms, success_event_count)
 VALUES (
     'aaaaaaaa-2222-2222-2222-000000000001',
-    1000,       -- totalAgents
+    1000,       -- totalAgents (age_count_10~70 합산: 50+150+200+200+200+150+50)
     252000,     -- avgCompletionMs (252초 = 4분12초, /1000 변환 후 반환)
     280         -- successEventCount (성공률 = 280/1000 = 28%)
 )
@@ -112,10 +112,10 @@ VALUES
     (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000001', '20대', 150, 135, 15, 90.0, 10000),
     (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000001', '30대', 200, 170, 30, 85.0, 12000),
     (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000001', '40대', 200, 160, 40, 80.0, 15000),
-    (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000001', '50대', 150, 105, 45, 70.0, 20000),
-    (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000001', '60대', 100,  60, 40, 60.0, 28000),
+    (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000001', '50대', 200, 140, 60, 70.0, 20000),
+    (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000001', '60대', 150,  90, 60, 60.0, 28000),
     (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000001', '70대',  50,  20, 30, 40.0, 40000)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (page_id, age_band) DO NOTHING;
 
 -- 메인 페이지 (page_order=2)
 INSERT INTO page_age_stats (id, page_id, age_band, entered, passed, drop_off, success_rate, avg_time_ms)
@@ -124,10 +124,10 @@ VALUES
     (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000002', '20대', 135, 120, 15, 88.9, 8000),
     (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000002', '30대', 170, 148, 22, 87.1, 9000),
     (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000002', '40대', 160, 130, 30, 81.3, 11000),
-    (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000002', '50대', 105,  70, 35, 66.7, 16000),
-    (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000002', '60대',  60,  35, 25, 58.3, 22000),
+    (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000002', '50대', 140,  93, 47, 66.4, 16000),
+    (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000002', '60대',  90,  52, 38, 57.8, 22000),
     (gen_random_uuid(), 'aaaaaaaa-3333-3333-3333-000000000002', '70대',  20,   8, 12, 40.0, 35000)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (page_id, age_band) DO NOTHING;
 
 
 -- =============================================

@@ -38,3 +38,5 @@ out/
 
 ### Claude ###
 .claude/
+CLAUDE.md
+*.claude.md
