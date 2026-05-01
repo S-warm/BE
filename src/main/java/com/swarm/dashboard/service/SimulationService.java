@@ -37,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,8 @@ public class SimulationService {
     private final WcagResultRepository wcagResultRepository;
     private final WcagIssueRepository wcagIssueRepository;
     private final UserRepository userRepository;
+
+    private static final String[] AGE_BANDS = {"10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대"};
 
     // ────────────────────────────────────────
     // POST - 시뮬레이션 생성
@@ -125,7 +128,7 @@ public class SimulationService {
     @Transactional(readOnly = true)
     public SimulationOverviewResponse getOverview(UUID simulationId) {
         SimulationOverview overview = simulationOverviewRepository.findBySimulationId(simulationId)
-                .orElseThrow(() -> new RuntimeException("Overview 데이터가 없습니다. id=" + simulationId));
+                .orElseThrow(() -> new RuntimeException("Overview 데이터를 찾을 수 없습니다. id=" + simulationId));
 
         List<SimulationPage> pages = simulationPageRepository.findBySimulationIdOrderByPageOrder(simulationId);
 
@@ -146,12 +149,18 @@ public class SimulationService {
                     .mapToInt(s -> s.getPassed() != null ? s.getPassed() : 0).sum();
             double panelSuccessRate = totalEntered == 0 ? 0.0
                     : Math.round(totalPassed * 1000.0 / totalEntered) / 10.0;
-            int avgTimeMs = (int) ageStatsList.stream()
+            // double 유지 후 나눗셈 (int 캐스팅 시 1초 미만 체류시간 0 손실 방지)
+            double avgTimeMsDouble = ageStatsList.stream()
                     .mapToInt(s -> s.getAvgTimeMs() != null ? s.getAvgTimeMs() : 0)
-                    .average().orElse(0);
-            int avgTimeSeconds = avgTimeMs / 1000;
+                    .average().orElse(0.0);
+            int avgTimeSeconds = (int) Math.round(avgTimeMsDouble / 1000.0);
 
+            // 고정 8개 키 보장 — DB에 없는 연령대도 entered=0으로 포함
             Map<String, SimulationOverviewResponse.AgeGroupDto> agentsByAge = new LinkedHashMap<>();
+            for (String band : AGE_BANDS) {
+                agentsByAge.put(band, SimulationOverviewResponse.AgeGroupDto.builder()
+                        .entered(0).passed(0).dropOff(0).successRate(0.0).build());
+            }
             for (PageAgeStats stats : ageStatsList) {
                 int entered = stats.getEntered() != null ? stats.getEntered() : 0;
                 int passed = stats.getPassed() != null ? stats.getPassed() : 0;
@@ -193,17 +202,25 @@ public class SimulationService {
     public SimulationIssuesResponse getIssues(UUID simulationId) {
         List<Issue> issues = issueRepository.findBySimulationIdOrderByPageAndSeverity(simulationId);
 
+        // N+1 방지: simulation 전체 stats 한 번에 조회 후 issueId로 그룹핑
+        List<IssueAgeStats> allStats = issueAgeStatsRepository.findBySimulationId(simulationId);
+        Map<UUID, List<IssueAgeStats>> statsByIssueId = allStats.stream()
+                .collect(Collectors.groupingBy(s -> s.getId().getIssueId()));
+
         Map<SimulationPage, List<Issue>> byPage = issues.stream()
                 .collect(Collectors.groupingBy(Issue::getPage, LinkedHashMap::new, Collectors.toList()));
 
         List<SimulationIssuesResponse.IssuePageDto> pages = byPage.entrySet().stream().map(entry -> {
             SimulationPage page = entry.getKey();
-            List<Issue> pageIssues = entry.getValue();
+            // severity 정렬: CRITICAL→HIGH→MEDIUM→LOW (enum ordinal 순서)
+            List<Issue> pageIssues = entry.getValue().stream()
+                    .sorted(Comparator.comparingInt(i -> i.getSeverity() != null ? i.getSeverity().ordinal() : Integer.MAX_VALUE))
+                    .collect(Collectors.toList());
 
             List<SimulationIssuesResponse.IssueDto> issueDtos = pageIssues.stream().map(issue -> {
-                int affectedUsersCount = issueAgeStatsRepository.sumAffectedUsersByIssueId(issue.getId());
-
-                List<IssueAgeStats> ageStats = issueAgeStatsRepository.findById_IssueId(issue.getId());
+                List<IssueAgeStats> ageStats = statsByIssueId.getOrDefault(issue.getId(), List.of());
+                int affectedUsersCount = ageStats.stream()
+                        .mapToInt(s -> s.getAffectedUsers() != null ? s.getAffectedUsers() : 0).sum();
                 double affectedUsersPercent = ageStats.stream()
                         .mapToDouble(s -> s.getAffectedPercent() != null
                                 ? s.getAffectedPercent().doubleValue() : 0.0)
@@ -283,17 +300,15 @@ public class SimulationService {
     public SimulationHeatmapResponse getHeatmap(UUID simulationId, String ageGroup, int pageNum, int size) {
         List<SimulationPage> simPages = simulationPageRepository.findBySimulationIdOrderByPageOrder(simulationId);
 
-        List<SimulationHeatmapResponse.HeatmapPageDto> pageDtos = simPages.stream().map(simPage -> {
-            List<Issue> pageIssues = issueRepository.findByPage_Id(simPage.getId());
+        // N+1 방지: simulation 전체 stats 한 번에 조회 후 pageId로 그룹핑
+        List<IssueAgeStats> allSimStats = "all".equals(ageGroup)
+                ? issueAgeStatsRepository.findBySimulationId(simulationId)
+                : issueAgeStatsRepository.findBySimulationIdAndAgeBand(simulationId, ageGroup);
+        Map<UUID, List<IssueAgeStats>> statsByPageId = allSimStats.stream()
+                .collect(Collectors.groupingBy(s -> s.getIssue().getPage().getId()));
 
-            List<IssueAgeStats> allStats = new ArrayList<>();
-            for (Issue issue : pageIssues) {
-                if ("all".equals(ageGroup)) {
-                    allStats.addAll(issueAgeStatsRepository.findById_IssueId(issue.getId()));
-                } else {
-                    allStats.addAll(issueAgeStatsRepository.findById_IssueIdAndId_AgeBand(issue.getId(), ageGroup));
-                }
-            }
+        List<SimulationHeatmapResponse.HeatmapPageDto> pageDtos = simPages.stream().map(simPage -> {
+            List<IssueAgeStats> allStats = statsByPageId.getOrDefault(simPage.getId(), List.of());
 
             List<SimulationHeatmapResponse.ErrorPointDto> errorPoints = allStats.stream().map(stats -> {
                 int timeoutCnt = stats.getTimeoutCount() != null ? stats.getTimeoutCount() : 0;
@@ -360,10 +375,13 @@ public class SimulationService {
     public SimulationWcagResponse getWcag(UUID simulationId) {
         List<WcagResult> wcagResults = wcagResultRepository.findBySimulationId(simulationId);
         if (wcagResults.isEmpty()) {
-            throw new RuntimeException("WCAG 데이터가 없습니다. id=" + simulationId);
+            throw new RuntimeException("WCAG 데이터를 찾을 수 없습니다. id=" + simulationId);
         }
 
-        List<WcagIssue> allWcagIssues = wcagIssueRepository.findBySimulationId(simulationId);
+        // severity 정렬: Critical→Moderate→Minor (enum ordinal 순서)
+        List<WcagIssue> allWcagIssues = wcagIssueRepository.findBySimulationId(simulationId).stream()
+                .sorted(Comparator.comparingInt(i -> i.getSeverity() != null ? i.getSeverity().ordinal() : Integer.MAX_VALUE))
+                .collect(Collectors.toList());
 
         int totalTests = wcagResults.stream()
                 .mapToInt(r -> r.getTotalTests() != null ? r.getTotalTests() : 0).sum();
