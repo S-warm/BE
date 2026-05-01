@@ -10,5 +10,6 @@ public interface IssueRepository extends JpaRepository<Issue, UUID> {
     @Query("SELECT i FROM Issue i JOIN FETCH i.page p WHERE p.simulation.id = :simulationId ORDER BY p.pageOrder ASC, i.severity ASC")
     List<Issue> findBySimulationIdOrderByPageAndSeverity(UUID simulationId);
 
+    @Query("SELECT i FROM Issue i JOIN FETCH i.page WHERE i.page.id = :pageId ORDER BY i.severity ASC")
     List<Issue> findByPage_Id(UUID pageId);
 }

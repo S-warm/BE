@@ -5,5 +5,5 @@ import java.util.List;
 import java.util.UUID;
 
 public interface PageAgeStatsRepository extends JpaRepository<PageAgeStats, UUID> {
-    List<PageAgeStats> findByPageId(UUID pageId);
+    List<PageAgeStats> findByPage_Id(UUID pageId);
 }

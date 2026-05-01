@@ -13,7 +13,7 @@ import java.util.UUID;
 public class SimulationPage {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid", updatable = false)
     private UUID id;
 

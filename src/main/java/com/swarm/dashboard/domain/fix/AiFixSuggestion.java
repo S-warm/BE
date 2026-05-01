@@ -16,7 +16,7 @@ import java.util.UUID;
 public class AiFixSuggestion {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid", updatable = false)
     private UUID id;
 

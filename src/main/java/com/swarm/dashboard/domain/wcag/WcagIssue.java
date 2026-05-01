@@ -13,7 +13,7 @@ import java.util.UUID;
 public class WcagIssue {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid", updatable = false)
     private UUID id;
 

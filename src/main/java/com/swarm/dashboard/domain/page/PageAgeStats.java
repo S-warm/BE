@@ -13,7 +13,7 @@ import java.util.UUID;
 public class PageAgeStats {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid", updatable = false)
     private UUID id;
 
