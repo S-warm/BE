@@ -167,8 +167,8 @@ public class SimulationController {
             - AI가 감지한 페이지 순서대로 동적 구성 (order 오름차순)
             - 데이터 소스: page_age_stats 테이블 (page_id + age_band 기준 집계)
             - avgTimeSeconds : 해당 페이지 전체 평균 체류 시간 (초 단위)
-            - agentsByAge    : 고정 8개 키 (10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대 / 80대)
-                               ageRatioTeen/Fifty/Eighty가 0%인 연령대도 entered=0으로 포함
+            - agentsByAge    : 고정 7개 키 (10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대)
+                               ratio가 0인 연령대도 entered=0으로 포함
             - AgeGroupDto    : entered / passed / dropOff / successRate
             """
     )
@@ -204,7 +204,7 @@ public class SimulationController {
                             "50대": { "entered": 100, "passed": 75, "dropOff": 25, "successRate": 75.0 },
                             "60대": { "entered": 70,  "passed": 50, "dropOff": 20, "successRate": 71.4 },
                             "70대": { "entered": 25,  "passed": 10, "dropOff": 15, "successRate": 40.0 },
-                            "80대": { "entered": 5,   "passed": 1,  "dropOff": 4,  "successRate": 20.0 }
+                            "70대": { "entered": 25,  "passed": 10, "dropOff": 15, "successRate": 40.0 }
                           }
                         }
                       ]
@@ -421,7 +421,7 @@ public class SimulationController {
               1~3 = LOW, 4~7 = MEDIUM, 8~14 = HIGH, 15+ = CRITICAL
 
             [연령대 필터]
-            - ?ageGroup=all (기본값) / 10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대 / 80대
+            - ?ageGroup=all (기본값) / 10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대
             - 각 오류점의 ageBand 필드로 연령대 구분
             - 프론트에서 errorPoints.filter(p => p.ageBand === "10대") 로 필터링 가능
 
@@ -491,7 +491,7 @@ public class SimulationController {
     public ResponseEntity<SimulationHeatmapResponse> getHeatmap(
             @Parameter(description = "조회할 시뮬레이션 ID", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable UUID simulationId,
-            @Parameter(description = "연령대 필터 (all, 10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대)", example = "all")
+            @Parameter(description = "연령대 필터 (all, 10대, 20대, 30대, 40대, 50대, 60대, 70대)", example = "all")
             @RequestParam(defaultValue = "all") String ageGroup,
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -503,9 +503,9 @@ public class SimulationController {
     }
 
     private void validateAgeGroup(String ageGroup) {
-        Set<String> valid = Set.of("all", "10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대");
+        Set<String> valid = Set.of("all", "10대", "20대", "30대", "40대", "50대", "60대", "70대");
         if (!valid.contains(ageGroup)) {
-            throw new IllegalArgumentException("Invalid ageGroup: " + ageGroup + ". 허용값: all, 10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대");
+            throw new IllegalArgumentException("Invalid ageGroup: " + ageGroup + ". 허용값: all, 10대, 20대, 30대, 40대, 50대, 60대, 70대");
         }
     }
 

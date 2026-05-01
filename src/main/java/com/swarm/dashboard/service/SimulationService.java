@@ -60,7 +60,7 @@ public class SimulationService {
     private final WcagIssueRepository wcagIssueRepository;
     private final UserRepository userRepository;
 
-    private static final String[] AGE_BANDS = {"10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대"};
+    private static final String[] AGE_BANDS = {"10대", "20대", "30대", "40대", "50대", "60대", "70대"};
 
     // ────────────────────────────────────────
     // POST - 시뮬레이션 생성
