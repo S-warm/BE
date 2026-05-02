@@ -155,14 +155,14 @@ public class SimulationService {
                     .average().orElse(0.0);
             int avgTimeSeconds = (int) Math.round(avgTimeMsDouble / 1000.0);
 
-            // 고정 8개 키 보장 — DB에 없는 연령대도 entered=0으로 포함
+            // 고정 7개 키 보장 — DB에 없는 연령대도 entered=0으로 포함
             Map<String, SimulationOverviewResponse.AgeGroupDto> agentsByAge = new LinkedHashMap<>();
             for (String band : AGE_BANDS) {
                 agentsByAge.put(band, SimulationOverviewResponse.AgeGroupDto.builder()
                         .entered(0).passed(0).dropOff(0).successRate(0.0).build());
             }
             for (PageAgeStats stats : ageStatsList) {
-                // AGE_BANDS 범위 외 데이터(예: 80대) 필터링
+                // AGE_BANDS 범위 외 데이터 필터링 (방어 로직)
                 if (!AGE_BANDS.contains(stats.getAgeBand())) continue;
                 int entered = stats.getEntered() != null ? stats.getEntered() : 0;
                 int passed = stats.getPassed() != null ? stats.getPassed() : 0;

@@ -46,7 +46,7 @@ public class SimulationController {
 
             - personaDevice 허용값: desktop / mobile / tablet
             - digitalLiteracy 허용값: high / medium / low
-            - ageRatioTeen + ageRatioFifty + ageRatioEighty 합계 = 100 (서버에서 검증)
+            - ageCount10 ~ ageCount70 : 7개 연령대별 페르소나 인원 (각각 0 이상)
             - visionImpairment, attentionLevel 은 선택 항목 (0~100)
             - userId 인증은 추후 JWT 방식으로 교체 예정입니다.
             """
@@ -203,7 +203,6 @@ public class SimulationController {
                             "40대": { "entered": 200, "passed": 160,"dropOff": 40, "successRate": 80.0 },
                             "50대": { "entered": 100, "passed": 75, "dropOff": 25, "successRate": 75.0 },
                             "60대": { "entered": 70,  "passed": 50, "dropOff": 20, "successRate": 71.4 },
-                            "70대": { "entered": 25,  "passed": 10, "dropOff": 15, "successRate": 40.0 },
                             "70대": { "entered": 25,  "passed": 10, "dropOff": 15, "successRate": 40.0 }
                           }
                         }
@@ -545,7 +544,7 @@ public class SimulationController {
                             examples = @ExampleObject(value = """
                     {
                       "summary": {
-                        "complianceScore": 52.0,
+                        "complianceScore": 45.0,
                         "wcagLabel": "AA",
                         "totalTests": 20,
                         "passedTests": 9,
