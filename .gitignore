@@ -36,6 +36,7 @@ out/
 ### VS Code ###
 .vscode/
 
-
-# AI Assistant tools
+### Claude ###
 .claude/
+CLAUDE.md
+*.claude.md

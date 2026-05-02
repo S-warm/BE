@@ -21,14 +21,26 @@ public class SimulationSettings {
     @JoinColumn(name = "simulation_id")
     private Simulation simulation;
 
-    @Column(name = "age_ratio_teen")
-    private Integer ageRatioTeen;
+    @Column(name = "age_count_10")
+    private Integer ageCount10;
 
-    @Column(name = "age_ratio_fifty")
-    private Integer ageRatioFifty;
+    @Column(name = "age_count_20")
+    private Integer ageCount20;
 
-    @Column(name = "age_ratio_eighty")
-    private Integer ageRatioEighty;
+    @Column(name = "age_count_30")
+    private Integer ageCount30;
+
+    @Column(name = "age_count_40")
+    private Integer ageCount40;
+
+    @Column(name = "age_count_50")
+    private Integer ageCount50;
+
+    @Column(name = "age_count_60")
+    private Integer ageCount60;
+
+    @Column(name = "age_count_70")
+    private Integer ageCount70;
 
     @Column(name = "digital_literacy", length = 20)
     private String digitalLiteracy;

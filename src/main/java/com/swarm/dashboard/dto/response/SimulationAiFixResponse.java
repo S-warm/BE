@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.swarm.dashboard.domain.issue.IssueSeverity;
 import java.util.List;
 import java.util.UUID;
 
@@ -68,7 +69,7 @@ public class SimulationAiFixResponse {
         private String title;
 
         @Schema(description = "심각도. 허용값: CRITICAL / HIGH / MEDIUM / LOW", example = "HIGH")
-        private String severity;
+        private IssueSeverity severity;
 
         // ✅ DB 매핑: ai_fix_suggestions.impacted_users
         @Schema(description = "영향받은 에이전트 수. DB 컬럼: ai_fix_suggestions.impacted_users", example = "142")

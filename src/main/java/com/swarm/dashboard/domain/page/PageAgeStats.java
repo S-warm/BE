@@ -13,7 +13,7 @@ import java.util.UUID;
 public class PageAgeStats {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid", updatable = false)
     private UUID id;
 
@@ -27,12 +27,15 @@ public class PageAgeStats {
     @Column(name = "success_rate", precision = 5, scale = 2)
     private BigDecimal successRate;
 
-    @Column
+    @Column(name = "entered")
     private Integer entered;
 
-    @Column
+    @Column(name = "passed")
     private Integer passed;
 
     @Column(name = "drop_off")
     private Integer dropOff;
+
+    @Column(name = "avg_time_ms")
+    private Integer avgTimeMs;
 }

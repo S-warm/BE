@@ -1,7 +1,7 @@
 package com.swarm.dashboard.domain.fix;
 
 import com.swarm.dashboard.domain.issue.Issue;
-import com.swarm.dashboard.domain.page.SimulationPage;
+import com.swarm.dashboard.domain.issue.IssueSeverity;
 import com.swarm.dashboard.domain.simulation.Simulation;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -16,7 +16,7 @@ import java.util.UUID;
 public class AiFixSuggestion {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid", updatable = false)
     private UUID id;
 
@@ -24,11 +24,7 @@ public class AiFixSuggestion {
     @JoinColumn(name = "simulation_id")
     private Simulation simulation;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "page_id")
-    private SimulationPage page;
-
-    // ✅ [추가] Issues 탭 연동 기준 FK — AiFixDto.issueId 의 실제 소스
+    // page_id 제거 — issue_id → issues.page_id 로 접근 (중복 FK 정규화)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "issue_id")
     private Issue issue;
@@ -36,8 +32,9 @@ public class AiFixSuggestion {
     @Column
     private String title;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String severity;
+    private IssueSeverity severity;
 
     @Column(name = "before_code", columnDefinition = "TEXT")
     private String beforeCode;

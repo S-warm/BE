@@ -15,7 +15,7 @@ import java.util.UUID;
 public class Simulation {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "uuid", updatable = false)
     private UUID id;
 
@@ -28,9 +28,6 @@ public class Simulation {
 
     @Column(name = "target_url", nullable = false, length = 1000)
     private String targetUrl;
-
-    @Column(name = "persona_count")
-    private Integer personaCount;
 
     @Column(length = 20)
     private String status;

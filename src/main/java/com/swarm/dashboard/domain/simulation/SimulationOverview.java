@@ -3,7 +3,6 @@ package com.swarm.dashboard.domain.simulation;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -22,9 +21,7 @@ public class SimulationOverview {
     @JoinColumn(name = "simulation_id")
     private Simulation simulation;
 
-    @Column(name = "conversion_rate", precision = 5, scale = 2)
-    private BigDecimal conversionRate;
-
+    // conversion_rate 제거 — success_event_count / tested_agent_count * 100 으로 Service에서 계산
     @Column(name = "tested_agent_count")
     private Integer testedAgentCount;
 
