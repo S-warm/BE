@@ -5,6 +5,10 @@ spring:
     password: ${DB_PASSWORD:0000}
     driver-class-name: org.postgresql.Driver
 
+  docker:
+    compose:
+      enabled: false
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -19,7 +23,6 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
-  # ✅ [Jackson] 날짜 ISO 8601 포맷 보장 (타임스탬프 숫자 직렬화 방지)
   jackson:
     serialization:
       write-dates-as-timestamps: false
