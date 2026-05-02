@@ -29,7 +29,7 @@ services:
       DB_PORT: 5432
       DB_NAME: swarmDB
       DB_USERNAME: swarm
-      DB_PASSWORD: 0000
+      DB_PASSWORD: "0000"
     depends_on:
       postgres:
         condition: service_healthy

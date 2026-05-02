@@ -81,7 +81,8 @@ CREATE TABLE page_age_stats (
                                 success_rate DECIMAL(5,2),
                                 entered      INT DEFAULT 0,
                                 passed       INT DEFAULT 0,
-                                drop_off     INT DEFAULT 0
+                                drop_off     INT DEFAULT 0,
+                                UNIQUE (page_id, age_band)
 );
 
 CREATE INDEX idx_page_age_stats_page ON page_age_stats(page_id);

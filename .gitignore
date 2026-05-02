@@ -40,3 +40,5 @@ out/
 .claude/
 CLAUDE.md
 *.claude.md
+
+.DS_Store
