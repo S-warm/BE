@@ -19,7 +19,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +29,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/simulations")
-@Slf4j
 @RequiredArgsConstructor
 @Tag(name = "Simulation", description = "시뮬레이션 생성 및 관리 API")
 public class SimulationController {
@@ -48,7 +46,7 @@ public class SimulationController {
 
             - personaDevice 허용값: desktop / mobile / tablet
             - digitalLiteracy 허용값: high / medium / low
-            - ageRatioTeen + ageRatioFifty + ageRatioEighty 합계 = 100 (서버에서 검증)
+            - ageCount10 ~ ageCount70 : 7개 연령대별 페르소나 인원 (각각 0 이상)
             - visionImpairment, attentionLevel 은 선택 항목 (0~100)
             - userId 인증은 추후 JWT 방식으로 교체 예정입니다.
             """
@@ -86,11 +84,7 @@ public class SimulationController {
             @RequestParam UUID userId,
             @Valid @RequestBody SimulationCreateRequest request
     ) {
-        log.info("Received createSimulation request. userId={}, title={}", userId, request.getTitle());
-
         SimulationCreateResponse response = simulationService.createSimulation(userId, request);
-        log.info("Returning createSimulation response. simulationId={}, status={}", response.getId(), response.getStatus());
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -173,8 +167,8 @@ public class SimulationController {
             - AI가 감지한 페이지 순서대로 동적 구성 (order 오름차순)
             - 데이터 소스: page_age_stats 테이블 (page_id + age_band 기준 집계)
             - avgTimeSeconds : 해당 페이지 전체 평균 체류 시간 (초 단위)
-            - agentsByAge    : 고정 8개 키 (10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대 / 80대)
-                               ageRatioTeen/Fifty/Eighty가 0%인 연령대도 entered=0으로 포함
+            - agentsByAge    : 고정 7개 키 (10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대)
+                               ratio가 0인 연령대도 entered=0으로 포함
             - AgeGroupDto    : entered / passed / dropOff / successRate
             """
     )
@@ -209,8 +203,7 @@ public class SimulationController {
                             "40대": { "entered": 200, "passed": 160,"dropOff": 40, "successRate": 80.0 },
                             "50대": { "entered": 100, "passed": 75, "dropOff": 25, "successRate": 75.0 },
                             "60대": { "entered": 70,  "passed": 50, "dropOff": 20, "successRate": 71.4 },
-                            "70대": { "entered": 25,  "passed": 10, "dropOff": 15, "successRate": 40.0 },
-                            "80대": { "entered": 5,   "passed": 1,  "dropOff": 4,  "successRate": 20.0 }
+                            "70대": { "entered": 25,  "passed": 10, "dropOff": 15, "successRate": 40.0 }
                           }
                         }
                       ]
@@ -427,7 +420,7 @@ public class SimulationController {
               1~3 = LOW, 4~7 = MEDIUM, 8~14 = HIGH, 15+ = CRITICAL
 
             [연령대 필터]
-            - ?ageGroup=all (기본값) / 10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대 / 80대
+            - ?ageGroup=all (기본값) / 10대 / 20대 / 30대 / 40대 / 50대 / 60대 / 70대
             - 각 오류점의 ageBand 필드로 연령대 구분
             - 프론트에서 errorPoints.filter(p => p.ageBand === "10대") 로 필터링 가능
 
@@ -497,7 +490,7 @@ public class SimulationController {
     public ResponseEntity<SimulationHeatmapResponse> getHeatmap(
             @Parameter(description = "조회할 시뮬레이션 ID", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable UUID simulationId,
-            @Parameter(description = "연령대 필터 (all, 10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대)", example = "all")
+            @Parameter(description = "연령대 필터 (all, 10대, 20대, 30대, 40대, 50대, 60대, 70대)", example = "all")
             @RequestParam(defaultValue = "all") String ageGroup,
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -509,9 +502,9 @@ public class SimulationController {
     }
 
     private void validateAgeGroup(String ageGroup) {
-        Set<String> valid = Set.of("all", "10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대");
+        Set<String> valid = Set.of("all", "10대", "20대", "30대", "40대", "50대", "60대", "70대");
         if (!valid.contains(ageGroup)) {
-            throw new IllegalArgumentException("Invalid ageGroup: " + ageGroup + ". 허용값: all, 10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대");
+            throw new IllegalArgumentException("Invalid ageGroup: " + ageGroup + ". 허용값: all, 10대, 20대, 30대, 40대, 50대, 60대, 70대");
         }
     }
 
@@ -550,44 +543,36 @@ public class SimulationController {
                             schema = @Schema(implementation = SimulationWcagResponse.class),
                             examples = @ExampleObject(value = """
                     {
-                      "pages": [
+                      "summary": {
+                        "complianceScore": 45.0,
+                        "wcagLabel": "AA",
+                        "totalTests": 20,
+                        "passedTests": 9,
+                        "foundIssues": 14
+                      },
+                      "distribution": {
+                        "critical": 4,
+                        "moderate": 6,
+                        "minor": 4
+                      },
+                      "issues": [
                         {
-                          "order": 1,
-                          "pageName": "로그인 페이지",
-                          "pageUrl": "https://a-mall.com/login",
-                          "screenshotUrl": "https://storage.example.com/screenshots/sim42_page1.png",
-                          "summary": {
-                            "complianceScore": 38.0,
-                            "wcagLabel": "AA",
-                            "totalTests": 10,
-                            "passedTests": 3,
-                            "foundIssues": 10
-                          },
-                          "distribution": {
-                            "critical": 3,
-                            "moderate": 4,
-                            "minor": 3
-                          },
-                          "issues": [
-                            {
-                              "wcagIssueId": 1,
-                              "title": "텍스트 대비율",
-                              "severity": "Critical",
-                              "description": "본문/보조 텍스트의 대비가 WCAG 2.1 AA 기준을 충족하지 않아 저시력 사용자의 가독성이 저하됩니다."
-                            },
-                            {
-                              "wcagIssueId": 2,
-                              "title": "최소 글자 크기",
-                              "severity": "Moderate",
-                              "description": "일부 텍스트가 12px 이하로 표시되어 읽기 어려울 수 있습니다."
-                            },
-                            {
-                              "wcagIssueId": 3,
-                              "title": "위치 수정",
-                              "severity": "Minor",
-                              "description": "일부 UI 요소의 위치가 사용자 예상 동선과 다르게 배치되어 탐색 혼란을 유발할 수 있습니다."
-                            }
-                          ]
+                          "wcagIssueId": "bbbbbbbb-0000-0000-0000-000000000001",
+                          "title": "텍스트 대비율",
+                          "severity": "Critical",
+                          "description": "본문/보조 텍스트의 대비가 WCAG 2.1 AA 기준을 충족하지 않아 저시력 사용자의 가독성이 저하됩니다."
+                        },
+                        {
+                          "wcagIssueId": "bbbbbbbb-0000-0000-0000-000000000005",
+                          "title": "최소 글자 크기",
+                          "severity": "Moderate",
+                          "description": "일부 텍스트가 12px 이하로 표시되어 읽기 어려울 수 있습니다."
+                        },
+                        {
+                          "wcagIssueId": "bbbbbbbb-0000-0000-0000-000000000011",
+                          "title": "위치 수정",
+                          "severity": "Minor",
+                          "description": "일부 UI 요소의 위치가 사용자 예상 동선과 다르게 배치되어 탐색 혼란을 유발할 수 있습니다."
                         }
                       ]
                     }

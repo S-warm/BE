@@ -52,4 +52,7 @@ public class IssueAgeStats {
 
     @Column(name = "console_count")
     private Integer consoleCount;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
 }

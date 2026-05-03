@@ -21,11 +21,6 @@ public class SimulationCreateRequest {
     @Schema(description = "테스트 대상 URL", example = "https://shopping-mall.com/checkout")
     private String targetUrl;
 
-    @NotNull
-    @Min(1)
-    @Schema(description = "총 페르소나 수", example = "500")
-    private Integer personaCount;
-
     @NotBlank
     @Schema(
             description = "디지털 리터러시 수준",
@@ -46,21 +41,40 @@ public class SimulationCreateRequest {
     )
     private String personaDevice;
 
-    // ✅ ratio 필드명 DB simulation_settings 컬럼명으로 통일
     @NotNull
-    @Min(0) @Max(100)
-    @Schema(description = "10~40대 페르소나 비율 (%)", example = "25")
-    private Integer ageRatioTeen;
+    @Min(0)
+    @Schema(description = "10대 페르소나 수", example = "100")
+    private Integer ageCount10;
 
     @NotNull
-    @Min(0) @Max(100)
-    @Schema(description = "50~60대 페르소나 비율 (%)", example = "25")
-    private Integer ageRatioFifty;
+    @Min(0)
+    @Schema(description = "20대 페르소나 수", example = "150")
+    private Integer ageCount20;
 
     @NotNull
-    @Min(0) @Max(100)
-    @Schema(description = "70~80대 페르소나 비율 (%)", example = "50")
-    private Integer ageRatioEighty;
+    @Min(0)
+    @Schema(description = "30대 페르소나 수", example = "150")
+    private Integer ageCount30;
+
+    @NotNull
+    @Min(0)
+    @Schema(description = "40대 페르소나 수", example = "100")
+    private Integer ageCount40;
+
+    @NotNull
+    @Min(0)
+    @Schema(description = "50대 페르소나 수", example = "100")
+    private Integer ageCount50;
+
+    @NotNull
+    @Min(0)
+    @Schema(description = "60대 페르소나 수", example = "100")
+    private Integer ageCount60;
+
+    @NotNull
+    @Min(0)
+    @Schema(description = "70대 페르소나 수", example = "100")
+    private Integer ageCount70;
 
     // ✅ [M-2] SimulationSettings.visionImpairment / attentionLevel 추가
     @Min(0) @Max(100)

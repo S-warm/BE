@@ -95,9 +95,9 @@ public class SimulationOverviewResponse {
 
         // ✅ [ageBand 통일] Heatmap ageGroup 파라미터와 동일한 한국어 형식으로 변경
         @Schema(
-                description = "연령대별 세분화 데이터. 고정 8개 키: " +
-                        "'10대','20대','30대','40대','50대','60대','70대','80대'. " +
-                        "ratio가 0인 연령대도 entered=0으로 포함."
+                description = "연령대별 세분화 데이터. 고정 7개 키: " +
+                        "'10대','20대','30대','40대','50대','60대','70대'. " +
+                        "해당 연령대 데이터가 없어도 entered=0으로 포함."
         )
         private Map<String, AgeGroupDto> agentsByAge;
     }

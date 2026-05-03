@@ -36,8 +36,10 @@ out/
 ### VS Code ###
 .vscode/
 
-### Claude Code ###
+### Claude ###
 .claude/
+CLAUDE.md
+*.claude.md
 
 ### macOS ###
 .DS_Store
@@ -45,4 +47,3 @@ out/
 ### env ###
 .env
 .env.local
-

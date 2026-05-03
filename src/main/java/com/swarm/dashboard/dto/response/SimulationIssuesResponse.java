@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.swarm.dashboard.domain.issue.IssueSeverity;
 import java.util.List;
 import java.util.UUID;
 
@@ -78,7 +79,7 @@ public class SimulationIssuesResponse {
                 description = "심각도. 허용값: CRITICAL / HIGH / MEDIUM / LOW",
                 example = "HIGH"
         )
-        private String severity;
+        private IssueSeverity severity;
 
         // ✅ DB 매핑: issue_age_stats.affected_users 를 연령대별로 합산한 값
         // ⚠️ issues 테이블에 직접 저장된 컬럼이 아님 — DB 연동 시 SUM(affected_users) 집계 필요

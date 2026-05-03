@@ -24,40 +24,25 @@ repositories {
 }
 
 dependencies {
-    // Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
-
-    // Security (검증 우회용 — SecurityConfig 에서 permitAll 처리)
     implementation 'org.springframework.boot:spring-boot-starter-security'
-
-    // JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-
-    // PostgreSQL
     runtimeOnly 'org.postgresql:postgresql'
-
-    // Flyway
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
-
-    // Lombok
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-
-    // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    // Validation (@Valid, @NotBlank 등)
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-
-    // Swagger (OpenAPI)
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
-
-    // Spring Boot 실행 시 docker-compose 자동 기동 (PDF 권장 — 개발 편의)
-    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+task dockerUp(type: Exec) {
+    commandLine 'docker', 'compose', '--profile', 'docker', 'up', '-d', '--build'
 }
