@@ -31,4 +31,7 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
     time-zone: Asia/Seoul
-    date-for
+    date-format: "yyyy-MM-dd'T'HH:mm:ssXXX"
+
+server:
+  port: 8080
