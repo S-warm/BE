@@ -99,12 +99,7 @@ public class SimulationIssuesResponse {
         @Schema(description = "연관 태그 목록. DB 컬럼: issues.tags (JSONB). 예: [\"contrast\", \"wcag_aa\"]", example = "[\"contrast\", \"wcag_aa\"]")
         private List<String> tags;
 
-        // ───────────────────────────────────────────
-        // TODO: 아래 DB 필드들은 현재 API 응답에 미포함.
-        //       프론트 기획 확정 후 필요 시 추가하세요.
-        // ───────────────────────────────────────────
-        // issues.sub_category  VARCHAR(100) — 세부 카테고리 (예: "대비율", "키보드 접근성")
-        // issues.benefit_label VARCHAR(100) — 개선 효과 레이블 (예: "전환율 +3%")
-        // issues.benefit_delta VARCHAR(20)  — 개선 예상 수치 (예: "+3%")
+        @Schema(description = "세부 카테고리. DB 컬럼: issues.sub_category. 예: \"색상 대비\", \"키보드 접근성\"", example = "색상 대비")
+        private String subCategory;
     }
 }

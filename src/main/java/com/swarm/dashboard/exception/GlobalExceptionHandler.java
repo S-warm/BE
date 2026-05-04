@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
 
@@ -48,6 +49,18 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(400, "Bad Request",
                         "필수 파라미터가 누락되었습니다: " + e.getParameterName(), request.getRequestURI()));
+    }
+
+    // ────────────────────────────────────────
+    // 400 — UUID 등 타입 변환 실패 (잘못된 형식의 PathVariable)
+    // ────────────────────────────────────────
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException e, HttpServletRequest request) {
+        String message = e.getName() + " 파라미터의 형식이 올바르지 않습니다: " + e.getValue();
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(400, "Bad Request", message, request.getRequestURI()));
     }
 
     // ────────────────────────────────────────

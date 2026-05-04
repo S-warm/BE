@@ -238,6 +238,7 @@ public class SimulationService {
                         .description(issue.getDescription())
                         .targetHtml(issue.getTargetHtml())
                         .tags(issue.getTags() != null ? issue.getTags() : List.of())
+                        .subCategory(issue.getSubCategory())
                         .build();
             }).collect(Collectors.toList());
 
