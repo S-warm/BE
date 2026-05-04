@@ -6,31 +6,37 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 @Converter
 public class StringListConverter implements AttributeConverter<List<String>, String> {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
     public String convertToDatabaseColumn(List<String> attribute) {
-        if (attribute == null || attribute.isEmpty()) return "[]";
+        if (attribute == null || attribute.isEmpty()) {
+            return "[]";
+        }
+
         try {
-            return objectMapper.writeValueAsString(attribute);
+            return OBJECT_MAPPER.writeValueAsString(attribute);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("List<String> → JSON 변환 실패", e);
+            throw new IllegalArgumentException("Failed to serialize tags as JSON", e);
         }
     }
 
     @Override
     public List<String> convertToEntityAttribute(String dbData) {
-        if (dbData == null || dbData.isBlank()) return Collections.emptyList();
+        if (dbData == null || dbData.isBlank()) {
+            return new ArrayList<>();
+        }
+
         try {
-            return objectMapper.readValue(dbData, new TypeReference<>() {});
+            return OBJECT_MAPPER.readValue(dbData, new TypeReference<List<String>>() {});
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("JSON → List<String> 변환 실패", e);
+            throw new IllegalArgumentException("Failed to deserialize tags JSON", e);
         }
     }
 }
