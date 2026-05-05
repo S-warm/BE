@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="SwarmServerApplication (8081)" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" singleton="true">
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.swarm.dashboard.SwarmServerApplication" />
+    <module name="dashboard.main" />
+    <envs>
+      <env name="SERVER_PORT" value="8081" />
+    </envs>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

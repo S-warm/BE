@@ -20,12 +20,12 @@ services:
       retries: 5
 
   app:
-    profiles: ["container-app"]
     build: .
     container_name: uxswarm-app
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
+      SERVER_PORT: 8081
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: swarmDB

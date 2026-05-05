@@ -47,3 +47,8 @@ CLAUDE.md
 ### env ###
 .env
 .env.local
+
+### local boot logs ###
+bootrun*.log
+verify-bootrun*.log
+port-watch.log
