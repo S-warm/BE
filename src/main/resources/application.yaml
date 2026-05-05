@@ -35,3 +35,7 @@ spring:
 
 server:
   port: ${SERVER_PORT:8081}
+
+app:
+  simulation:
+    test-mode: ${APP_SIMULATION_TEST_MODE:true}

@@ -5,12 +5,14 @@ import com.swarm.dashboard.domain.simulation.Simulation;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "wcag_results")
 @Getter
+@Setter
 @NoArgsConstructor
 public class WcagResult {
 

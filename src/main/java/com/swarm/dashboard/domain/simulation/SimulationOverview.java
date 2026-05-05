@@ -3,12 +3,14 @@ package com.swarm.dashboard.domain.simulation;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "simulation_overview")
 @Getter
+@Setter
 @NoArgsConstructor
 public class SimulationOverview {
 

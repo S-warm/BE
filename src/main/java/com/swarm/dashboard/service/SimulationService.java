@@ -32,6 +32,7 @@ import com.swarm.dashboard.domain.wcag.WcagResult;
 import com.swarm.dashboard.domain.wcag.WcagResultRepository;
 import com.swarm.dashboard.domain.wcag.WcagSeverity;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +48,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SimulationService {
+
+    @Value("${app.simulation.test-mode:false}")
+    private boolean simulationTestMode;
 
     private final SimulationRepository simulationRepository;
     private final SimulationSettingsRepository simulationSettingsRepository;
@@ -70,12 +74,17 @@ public class SimulationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다. id=" + userId));
 
+        OffsetDateTime now = OffsetDateTime.now();
+        String status = simulationTestMode ? "completed" : "pending";
+
         Simulation simulation = Simulation.builder()
                 .user(user)
                 .title(request.getTitle())
                 .targetUrl(request.getTargetUrl())
-                .status("pending")
-                .createdAt(OffsetDateTime.now())
+                .status(status)
+                .startedAt(now)
+                .completedAt(simulationTestMode ? now : null)
+                .createdAt(now)
                 .build();
 
         Simulation saved = simulationRepository.save(simulation);
@@ -97,6 +106,26 @@ public class SimulationService {
                 .build();
 
         simulationSettingsRepository.save(settings);
+
+        // 빈 Overview 데이터 생성 (모든 탭이 로드될 수 있도록)
+        SimulationOverview overview = new SimulationOverview();
+        overview.setSimulation(saved);
+        overview.setTestedAgentCount(0);
+        overview.setAvgCompletionMs(0);
+        overview.setSuccessEventCount(0);
+        overview.setUpdatedAt(now);
+        simulationOverviewRepository.save(overview);
+
+        // 빈 WCAG 결과 생성 (WCAG 탭이 500 에러 나지 않도록)
+        WcagResult wcagResult = new WcagResult();
+        wcagResult.setSimulation(saved);
+        wcagResult.setComplianceScore(0);
+        wcagResult.setWcagLabel("N/A");
+        wcagResult.setPassedTests(0);
+        wcagResult.setTotalTests(0);
+        wcagResult.setFoundIssues(0);
+        wcagResult.setCreatedAt(now);
+        wcagResultRepository.save(wcagResult);
 
         return SimulationCreateResponse.builder()
                 .id(saved.getId())
