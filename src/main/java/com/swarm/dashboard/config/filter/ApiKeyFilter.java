@@ -28,7 +28,8 @@ public class ApiKeyFilter extends OncePerRequestFilter {
                                     HttpServletResponse res,
                                     FilterChain chain) throws ServletException, IOException {
         String path = req.getRequestURI();
-        boolean needsAuth = AI_CALLBACK_PATTERN.matcher(path).matches();
+        boolean needsAuth = "POST".equalsIgnoreCase(req.getMethod())
+                && AI_CALLBACK_PATTERN.matcher(path).matches();
 
         if (needsAuth) {
             String key = req.getHeader("X-API-Key");

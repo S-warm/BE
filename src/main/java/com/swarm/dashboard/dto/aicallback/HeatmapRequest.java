@@ -2,11 +2,12 @@ package com.swarm.dashboard.dto.aicallback;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record HeatmapRequest(
-    List<ErrorPointDto> errorPoints
+    @JsonAlias({"errorPoints", "error_points"}) List<ErrorPointDto> errorPoints
 ) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
