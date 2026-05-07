@@ -1,5 +1,6 @@
 package com.swarm.dashboard.dto.aicallback;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
@@ -23,7 +24,7 @@ public record IssuesRequest(
         @JsonProperty("fail_count") int failCount,
         @JsonProperty("fail_rate") double failRate,
         @JsonProperty("affected_personas") List<AffectedPersonaDto> affectedPersonas,
-        @JsonProperty("screenshotUrl") String screenshotUrl
+        @JsonAlias({"screenshotUrl", "screenshot_url"}) String screenshotUrl
         // session_ids, persona_ages는 무시 (선언 안 함)
     ) {}
 

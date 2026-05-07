@@ -1,5 +1,6 @@
 package com.swarm.dashboard.dto.aicallback;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
@@ -16,7 +17,7 @@ public record WcagRequest(
         String wcagLabel,                    // "AAA"/"AA"/"A"/"미달"
         DistributionDto distribution,
         List<WcagViolationDto> violations,
-        String screenshotUrl,
+        @JsonAlias({"screenshotUrl", "screenshot_url"}) String screenshotUrl,
         String error                         // null이면 정상, 있으면 분석 실패 → skip
     ) {}
 

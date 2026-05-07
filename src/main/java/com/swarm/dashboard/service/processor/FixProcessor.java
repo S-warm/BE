@@ -36,7 +36,8 @@ public class FixProcessor {
                 if (fix.error() != null && !fix.error().isEmpty()) continue;
 
                 // (page_id + issue_title)로 issue 조회
-                Issue issue = issueRepo.findByPage_IdAndTitle(page.getId(), fix.issueTitle())
+                Issue issue = issueRepo.findByPage_IdAndTitle(
+                        page.getId(), fix.issueTitle() != null ? fix.issueTitle().trim() : null)
                     .orElse(null);
                 if (issue == null) continue;  // 매칭 안 되면 skip
 

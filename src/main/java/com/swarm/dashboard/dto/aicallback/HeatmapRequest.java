@@ -1,5 +1,6 @@
 package com.swarm.dashboard.dto.aicallback;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
@@ -18,6 +19,6 @@ public record HeatmapRequest(
         int count,
         String severity,                // 대문자 그대로
         String errorType,               // "사용성/시인성 부족" 한글 그대로
-        String screenshotUrl
+        @JsonAlias({"screenshotUrl", "screenshot_url"}) String screenshotUrl
     ) {}
 }

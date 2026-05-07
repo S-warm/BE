@@ -1,5 +1,6 @@
 package com.swarm.dashboard.dto.aicallback;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
@@ -13,7 +14,7 @@ public record FixesRequest(
     public record FixUrlDto(
         String url,
         List<FixItemDto> fixes,
-        String screenshotUrl
+        @JsonAlias({"screenshotUrl", "screenshot_url"}) String screenshotUrl
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)

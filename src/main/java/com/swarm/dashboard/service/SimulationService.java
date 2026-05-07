@@ -383,7 +383,14 @@ public class SimulationService {
     public SimulationWcagResponse getWcag(UUID projectId) {
         List<WcagResult> wcagResults = wcagResultRepository.findByProjectId(projectId);
         if (wcagResults.isEmpty()) {
-            throw new RuntimeException("WCAG 데이터를 찾을 수 없습니다. id=" + projectId);
+            return SimulationWcagResponse.builder()
+                    .score(0)
+                    .wcagLabel("미달")
+                    .distributionCritical(0)
+                    .distributionModerate(0)
+                    .distributionMinor(0)
+                    .issues(List.of())
+                    .build();
         }
 
         // 점수: 페이지별 점수 평균 (반올림)
