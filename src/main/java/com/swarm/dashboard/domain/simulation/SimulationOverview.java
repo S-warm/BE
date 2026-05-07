@@ -1,36 +1,36 @@
 package com.swarm.dashboard.domain.simulation;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import java.time.OffsetDateTime;
+import lombok.*;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
 @Table(name = "simulation_overview")
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SimulationOverview {
 
     @Id
-    @Column(name = "simulation_id", columnDefinition = "uuid")
-    private UUID simulationId;
+    @Column(name = "project_id", columnDefinition = "uuid", updatable = false)
+    private UUID projectId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
-    @JoinColumn(name = "simulation_id")
-    private Simulation simulation;
+    @JoinColumn(name = "project_id")
+    private Simulation project;
 
-    // conversion_rate 제거 — success_event_count / tested_agent_count * 100 으로 Service에서 계산
-    @Column(name = "tested_agent_count")
-    private Integer testedAgentCount;
+    @Column(name = "total_sessions")
+    private Integer totalSessions;
 
-    @Column(name = "avg_completion_ms")
-    private Integer avgCompletionMs;
+    @Column(name = "success_count")
+    private Integer successCount;
 
-    @Column(name = "success_event_count")
-    private Integer successEventCount;
+    @Column(name = "avg_duration_ms")
+    private Long avgDurationMs;
 
-    @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
+    @Column(name = "success_rate", precision = 8, scale = 4)
+    private BigDecimal successRate;
 }

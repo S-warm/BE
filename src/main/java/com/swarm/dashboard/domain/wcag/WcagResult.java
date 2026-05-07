@@ -3,15 +3,15 @@ package com.swarm.dashboard.domain.wcag;
 import com.swarm.dashboard.domain.page.SimulationPage;
 import com.swarm.dashboard.domain.simulation.Simulation;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import java.time.OffsetDateTime;
+import lombok.*;
 import java.util.UUID;
 
 @Entity
 @Table(name = "wcag_results")
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class WcagResult {
 
     @Id
@@ -20,28 +20,25 @@ public class WcagResult {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "simulation_id")
-    private Simulation simulation;
+    @JoinColumn(name = "project_id")
+    private Simulation project;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "page_id")
     private SimulationPage page;
 
-    @Column(name = "compliance_score")
-    private Integer complianceScore;
+    @Column(name = "score")
+    private Integer score;
 
-    @Column(name = "wcag_label", length = 50)
+    @Column(name = "wcag_label", length = 10)
     private String wcagLabel;
 
-    @Column(name = "passed_tests")
-    private Integer passedTests;
+    @Column(name = "distribution_critical")
+    private Integer distributionCritical;
 
-    @Column(name = "total_tests")
-    private Integer totalTests;
+    @Column(name = "distribution_moderate")
+    private Integer distributionModerate;
 
-    @Column(name = "found_issues")
-    private Integer foundIssues;
-
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "distribution_minor")
+    private Integer distributionMinor;
 }

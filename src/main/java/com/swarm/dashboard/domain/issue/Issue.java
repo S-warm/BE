@@ -2,12 +2,10 @@ package com.swarm.dashboard.domain.issue;
 
 import com.swarm.dashboard.config.StringListConverter;
 import com.swarm.dashboard.domain.page.SimulationPage;
-
 import com.swarm.dashboard.domain.simulation.Simulation;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import java.time.OffsetDateTime;
+import lombok.*;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,6 +13,8 @@ import java.util.UUID;
 @Table(name = "issues")
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Issue {
 
     @Id
@@ -23,8 +23,8 @@ public class Issue {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "simulation_id")
-    private Simulation simulation;
+    @JoinColumn(name = "project_id")
+    private Simulation project;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "page_id")
@@ -53,12 +53,9 @@ public class Issue {
     @Column(name = "target_html", length = 500)
     private String targetHtml;
 
-    @Column(name = "benefit_label", length = 100)
-    private String benefitLabel;
+    @Column(name = "fail_count")
+    private Integer failCount;
 
-    @Column(name = "benefit_delta", length = 20)
-    private String benefitDelta;
-
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "fail_rate", precision = 8, scale = 4)
+    private BigDecimal failRate;
 }

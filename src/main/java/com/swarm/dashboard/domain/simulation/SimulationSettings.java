@@ -13,47 +13,41 @@ import java.util.UUID;
 public class SimulationSettings {
 
     @Id
-    @Column(name = "simulation_id", columnDefinition = "uuid")
-    private UUID simulationId;
+    @Column(name = "project_id", columnDefinition = "uuid", updatable = false)
+    private UUID projectId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
-    @JoinColumn(name = "simulation_id")
-    private Simulation simulation;
+    @JoinColumn(name = "project_id")
+    private Simulation project;
 
-    @Column(name = "age_count_10")
-    private Integer ageCount10;
+    @Column(columnDefinition = "TEXT")
+    private String goal;
 
-    @Column(name = "age_count_20")
-    private Integer ageCount20;
+    @Column(name = "success_condition_path", length = 500)
+    private String successConditionPath;
 
-    @Column(name = "age_count_30")
-    private Integer ageCount30;
+    @Column(name = "success_condition_params", columnDefinition = "jsonb")
+    private String successConditionParams;
 
-    @Column(name = "age_count_40")
-    private Integer ageCount40;
+    @Column(name = "age_count_10s")
+    private Integer ageCount10s;
 
-    @Column(name = "age_count_50")
-    private Integer ageCount50;
+    @Column(name = "age_count_20s")
+    private Integer ageCount20s;
 
-    @Column(name = "age_count_60")
-    private Integer ageCount60;
+    @Column(name = "age_count_30s")
+    private Integer ageCount30s;
 
-    @Column(name = "age_count_70")
-    private Integer ageCount70;
+    @Column(name = "age_count_40s")
+    private Integer ageCount40s;
 
-    @Column(name = "digital_literacy", length = 20)
-    private String digitalLiteracy;
+    @Column(name = "age_count_50s")
+    private Integer ageCount50s;
 
-    @Column(name = "vision_impairment")
-    private Integer visionImpairment;
+    @Column(name = "age_count_60s")
+    private Integer ageCount60s;
 
-    @Column(name = "attention_level")
-    private Integer attentionLevel;
-
-    @Column(name = "persona_device", length = 50)
-    private String personaDevice;
-
-    @Column(name = "success_condition", columnDefinition = "TEXT")
-    private String successCondition;
+    @Column(name = "age_count_70s")
+    private Integer ageCount70s;
 }

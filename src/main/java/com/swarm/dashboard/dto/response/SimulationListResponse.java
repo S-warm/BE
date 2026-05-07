@@ -12,19 +12,13 @@ import java.util.UUID;
 @Schema(description = "시뮬레이션 목록 조회 응답 DTO (사이드바 전용)")
 public class SimulationListResponse {
 
-    @Schema(description = "시뮬레이션 ID", example = "550e8400-e29b-41d4-a716-446655440000")
-    private UUID id;
+    @Schema(description = "프로젝트 ID", example = "550e8400-e29b-41d4-a716-446655440000")
+    private UUID projectId;
 
-    // ✅ siteName 제거 — title로 사이드바 표시
-
-    @Schema(description = "시뮬레이션 제목 (사이드바 표시)", example = "Q1 2026 체크아웃 플로우 UX 테스트")
+    @Schema(description = "시뮬레이션 제목 (사이드바 표시)", example = "DBpia UX 테스트")
     private String title;
 
-    @Schema(
-            description = "시뮬레이션 상태",
-            example = "completed",
-            allowableValues = {"pending", "running", "completed", "failed"}
-    )
+    @Schema(description = "시뮬레이션 상태", example = "completed")
     private String status;
 
     @Schema(description = "생성 일시", example = "2026-04-11T10:30:45+09:00")

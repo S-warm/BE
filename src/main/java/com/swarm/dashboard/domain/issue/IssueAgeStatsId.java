@@ -18,5 +18,10 @@ public class IssueAgeStatsId implements Serializable {
     private UUID issueId;
 
     @Column(name = "age_band", length = 10)
-    private String ageBand;
+    private String ageBand;  // "20s" 영문으로 저장
+
+    public IssueAgeStatsId(UUID issueId, String ageBand) {
+        this.issueId = issueId;
+        this.ageBand = ageBand;
+    }
 }

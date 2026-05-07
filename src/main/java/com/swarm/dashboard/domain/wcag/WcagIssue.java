@@ -1,15 +1,15 @@
 package com.swarm.dashboard.domain.wcag;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import java.util.UUID;
-
 
 @Entity
 @Table(name = "wcag_issues")
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class WcagIssue {
 
     @Id
@@ -21,9 +21,6 @@ public class WcagIssue {
     @JoinColumn(name = "wcag_result_id")
     private WcagResult wcagResult;
 
-    @Column(name = "issue_no")
-    private Integer issueNo;
-
     @Column
     private String title;
 
@@ -33,4 +30,10 @@ public class WcagIssue {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(columnDefinition = "TEXT")
+    private String html;
+
+    @Column(name = "wcag_criteria", length = 20)
+    private String wcagCriteria;
 }

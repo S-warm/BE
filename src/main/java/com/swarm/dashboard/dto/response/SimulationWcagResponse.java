@@ -10,20 +10,27 @@ import com.swarm.dashboard.domain.wcag.WcagSeverity;
 import java.util.List;
 import java.util.UUID;
 
-// ✅ 문제 3 B안 — 페이지별 구조 → 시뮬레이션 단위 단일 구조로 변경
-// WcagPageDto 래퍼 제거, summary / distribution / issues 직접 노출
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "WCAG 검사 탭 응답 DTO (시뮬레이션 단위 통합 결과)")
+@Schema(description = "WCAG 검사 탭 응답 DTO")
 public class SimulationWcagResponse {
 
-    @Schema(description = "WCAG 2.1 전체 요약 메트릭")
-    private WcagSummaryDto summary;
+    @Schema(description = "WCAG 점수 (0~100)")
+    private Integer score;
 
-    @Schema(description = "심각도별 이슈 분포")
-    private WcagDistributionDto distribution;
+    @Schema(description = "WCAG 등급 (AAA/AA/A/미달)")
+    private String wcagLabel;
+
+    @Schema(description = "Critical 위반 수")
+    private Integer distributionCritical;
+
+    @Schema(description = "Moderate 위반 수")
+    private Integer distributionModerate;
+
+    @Schema(description = "Minor 위반 수")
+    private Integer distributionMinor;
 
     @Schema(description = "WCAG 이슈 목록 (Critical → Moderate → Minor 순)")
     private List<WcagIssueDto> issues;
@@ -32,49 +39,25 @@ public class SimulationWcagResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "WCAG 상단 요약 메트릭")
-    public static class WcagSummaryDto {
-        // ✅ DB 매핑: wcag_results.compliance_score (DB는 INT, DTO는 double)
-        // ⚠️ DB 연동 시 Integer → double 캐스팅 필요: (double) wcagResult.getComplianceScore()
-        @Schema(description = "WCAG 2.1 Level AA 준수 점수 (%). 계산: passedTests / totalTests * 100. DB 컬럼: wcag_results.compliance_score (INT → double 변환)", example = "52.0")
-        private double complianceScore;
-        @Schema(description = "WCAG 준수 등급. 허용값: A / AA / AAA", example = "AA")
-        private String wcagLabel;
-        @Schema(description = "전체 테스트 항목 수", example = "20")
-        private int totalTests;
-        @Schema(description = "통과된 테스트 수", example = "9")
-        private int passedTests;
-        @Schema(description = "발견된 이슈 총 수 = Critical + Moderate + Minor", example = "14")
-        private int foundIssues;
-    }
-
-    @Getter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Schema(description = "검출 이슈 분석 — Critical / Moderate / Minor 분포")
-    public static class WcagDistributionDto {
-        @Schema(description = "Critical 이슈 수", example = "4")
-        private int critical;
-        @Schema(description = "Moderate 이슈 수", example = "6")
-        private int moderate;
-        @Schema(description = "Minor 이슈 수", example = "4")
-        private int minor;
-    }
-
-    @Getter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
     @Schema(description = "WCAG 개별 이슈")
     public static class WcagIssueDto {
-        @Schema(description = "WCAG 이슈 고유 ID", example = "550e8400-e29b-41d4-a716-446655440001")
+
+        @Schema(description = "WCAG 이슈 고유 ID")
         private UUID wcagIssueId;
-        @Schema(description = "이슈 제목", example = "텍스트 대비율")
+
+        @Schema(description = "이슈 제목")
         private String title;
-        @Schema(description = "심각도. 허용값: Critical / Moderate / Minor", example = "Critical")
+
+        @Schema(description = "심각도 (Critical/Moderate/Minor)")
         private WcagSeverity severity;
-        @Schema(description = "이슈 설명 (자세히 보기 펼침 시 노출). AI 생성.", example = "본문/보조 텍스트의 대비가 WCAG 2.1 AA 기준을 충족하지 않아 저시력 사용자의 가독성이 저하됩니다.")
+
+        @Schema(description = "이슈 설명")
         private String description;
+
+        @Schema(description = "위반된 DOM 요소 HTML")
+        private String html;
+
+        @Schema(description = "WCAG 기준 번호", example = "1.4.3")
+        private String wcagCriteria;
     }
 }

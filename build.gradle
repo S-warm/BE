@@ -27,6 +27,9 @@ dependencies {
     // Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
+    // WebFlux (WebClient용)
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
     // Security (검증 우회용)
     implementation 'org.springframework.boot:spring-boot-starter-security'
 

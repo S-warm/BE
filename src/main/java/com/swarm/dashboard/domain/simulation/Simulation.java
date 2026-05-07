@@ -16,8 +16,8 @@ public class Simulation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(columnDefinition = "uuid", updatable = false)
-    private UUID id;
+    @Column(name = "project_id", columnDefinition = "uuid", updatable = false)
+    private UUID projectId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -29,12 +29,17 @@ public class Simulation {
     @Column(name = "target_url", nullable = false, length = 1000)
     private String targetUrl;
 
+    @Setter
     @Column(length = 20)
     private String status;
+
+    @Column(name = "date_prefix", length = 30)
+    private String datePrefix;
 
     @Column(name = "started_at")
     private OffsetDateTime startedAt;
 
+    @Setter
     @Column(name = "completed_at")
     private OffsetDateTime completedAt;
 

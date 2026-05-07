@@ -5,5 +5,5 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface SimulationOverviewRepository extends JpaRepository<SimulationOverview, UUID> {
-    Optional<SimulationOverview> findBySimulationId(UUID simulationId);
+    Optional<SimulationOverview> findByProjectId(UUID projectId);
 }
