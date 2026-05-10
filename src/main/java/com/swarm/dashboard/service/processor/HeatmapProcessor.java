@@ -9,6 +9,7 @@ import com.swarm.dashboard.domain.page.SimulationPageRepository;
 import com.swarm.dashboard.domain.simulation.Simulation;
 import com.swarm.dashboard.domain.simulation.SimulationRepository;
 import com.swarm.dashboard.dto.aicallback.HeatmapRequest;
+import com.swarm.dashboard.util.S3PresignService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,7 @@ public class HeatmapProcessor {
     private final SimulationPageRepository pageRepo;
     private final IssueRepository issueRepo;
     private final HeatmapPointRepository pointRepo;
+    private final S3PresignService s3PresignService;
 
     public void process(UUID projectId, HeatmapRequest req, Map<String, UUID> issueIndexMap) {
         Simulation sim = simRepo.findById(projectId).orElseThrow();
@@ -36,7 +38,7 @@ public class HeatmapProcessor {
                     SimulationPage p = SimulationPage.builder()
                         .project(sim)
                         .url(dto.url())
-                        .screenshotUrl(dto.screenshotUrl())
+                        .screenshotUrl(s3PresignService.extractKey(dto.screenshotUrl()))
                         .pageOrder(nextOrder)
                         .build();
                     return pageRepo.save(p);

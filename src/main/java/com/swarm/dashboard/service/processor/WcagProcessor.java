@@ -7,6 +7,7 @@ import com.swarm.dashboard.domain.simulation.SimulationRepository;
 import com.swarm.dashboard.domain.wcag.WcagResult;
 import com.swarm.dashboard.domain.wcag.WcagResultRepository;
 import com.swarm.dashboard.dto.aicallback.WcagRequest;
+import com.swarm.dashboard.util.S3PresignService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class WcagProcessor {
     private final SimulationPageRepository pageRepo;
     private final WcagResultRepository resultRepo;
     private final EntityManager em;  // native upsert용
+    private final S3PresignService s3PresignService;
 
     public void process(UUID projectId, WcagRequest req) {
         Simulation sim = simRepo.findById(projectId).orElseThrow();
@@ -40,7 +42,7 @@ public class WcagProcessor {
                     SimulationPage p = SimulationPage.builder()
                         .project(sim)
                         .url(url)
-                        .screenshotUrl(dto.screenshotUrl())
+                        .screenshotUrl(s3PresignService.extractKey(dto.screenshotUrl()))
                         .pageOrder(nextOrder)
                         .build();
                     return pageRepo.save(p);

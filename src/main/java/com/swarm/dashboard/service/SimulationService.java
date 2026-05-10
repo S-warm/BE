@@ -21,6 +21,7 @@ import com.swarm.dashboard.domain.wcag.WcagResultRepository;
 import com.swarm.dashboard.dto.request.SimulationCreateRequest;
 import com.swarm.dashboard.dto.response.*;
 import com.swarm.dashboard.util.AgeBandConverter;
+import com.swarm.dashboard.util.S3PresignService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,6 +54,7 @@ public class SimulationService {
     private final UserRepository userRepository;
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
+    private final S3PresignService s3PresignService;
 
     @Value("${python.endpoint-url}")
     private String pythonEndpointUrl;
@@ -268,7 +270,7 @@ public class SimulationService {
             return SimulationIssuesResponse.IssuePageDto.builder()
                     .order(page.getPageOrder() != null ? page.getPageOrder() : 0)
                     .pageUrl(page.getUrl())
-                    .screenshotUrl(page.getScreenshotUrl())
+                    .screenshotUrl(s3PresignService.presign(page.getScreenshotUrl()))
                     .totalIssueCount(issueDtos.size())
                     .issues(issueDtos)
                     .build();
@@ -306,7 +308,7 @@ public class SimulationService {
             return SimulationAiFixResponse.AiFixPageDto.builder()
                     .order(page.getPageOrder() != null ? page.getPageOrder() : 0)
                     .pageUrl(page.getUrl())
-                    .screenshotUrl(page.getScreenshotUrl())
+                    .screenshotUrl(s3PresignService.presign(page.getScreenshotUrl()))
                     .totalFixCount(fixDtos.size())
                     .fixes(fixDtos)
                     .build();
@@ -365,7 +367,7 @@ public class SimulationService {
             return SimulationHeatmapResponse.HeatmapPageDto.builder()
                     .order(simPage.getPageOrder() != null ? simPage.getPageOrder() : 0)
                     .pageUrl(simPage.getUrl())
-                    .screenshotUrl(simPage.getScreenshotUrl())
+                    .screenshotUrl(s3PresignService.presign(simPage.getScreenshotUrl()))
                     .totalErrorCount(totalCount)
                     .errorPoints(paginatedPoints)
                     .currentAgeGroup(ageGroup)

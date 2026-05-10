@@ -6,6 +6,7 @@ import com.swarm.dashboard.domain.page.SimulationPageRepository;
 import com.swarm.dashboard.domain.simulation.Simulation;
 import com.swarm.dashboard.domain.simulation.SimulationRepository;
 import com.swarm.dashboard.dto.aicallback.IssuesRequest;
+import com.swarm.dashboard.util.S3PresignService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ public class IssueProcessor {
     private final IssueRepository issueRepo;
     private final IssueAgeStatsRepository ageStatsRepo;
     private final IssueSessionRepository sessionRepo;
+    private final S3PresignService s3PresignService;
 
     public Map<String, UUID> process(UUID projectId, IssuesRequest req) {
         Simulation sim = simRepo.findById(projectId).orElseThrow();
@@ -45,7 +47,7 @@ public class IssueProcessor {
                     SimulationPage p = SimulationPage.builder()
                         .project(sim)
                         .url(url)
-                        .screenshotUrl(urlIssues.get(0).screenshotUrl())
+                        .screenshotUrl(s3PresignService.extractKey(urlIssues.get(0).screenshotUrl()))
                         .pageOrder(nextOrder)
                         .build();
                     return pageRepo.save(p);

@@ -39,3 +39,11 @@ python:
 
 ai:
   api-key: ${AI_API_KEY:dev-key-change-in-production}
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET:swarm-raw-bucket}
+    region: ${AWS_REGION:ap-northeast-2}
+    access-key: ${AWS_ACCESS_KEY:}
+    secret-key: ${AWS_SECRET_KEY:}
+    presigned-url-duration: ${AWS_PRESIGNED_URL_DURATION:3600}
