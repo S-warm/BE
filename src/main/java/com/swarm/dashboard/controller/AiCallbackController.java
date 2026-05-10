@@ -1,51 +1,23 @@
 package com.swarm.dashboard.controller;
 
-import com.swarm.dashboard.service.StagingPayloadService;
+import com.swarm.dashboard.service.S3ResultService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/simulations/{projectId}")
 @RequiredArgsConstructor
 public class AiCallbackController {
 
-    private final StagingPayloadService stagingService;
+    private final S3ResultService s3ResultService;
 
-    @PostMapping("/overview")
-    public ResponseEntity<Void> overview(@PathVariable UUID projectId,
-                                         @RequestBody String rawJson) {
-        stagingService.receive(projectId, "overview", rawJson);
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/issues")
-    public ResponseEntity<Void> issues(@PathVariable UUID projectId,
-                                       @RequestBody String rawJson) {
-        stagingService.receive(projectId, "issues", rawJson);
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/heatmap")
-    public ResponseEntity<Void> heatmap(@PathVariable UUID projectId,
-                                        @RequestBody String rawJson) {
-        stagingService.receive(projectId, "heatmap", rawJson);
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/wcag")
-    public ResponseEntity<Void> wcag(@PathVariable UUID projectId,
-                                     @RequestBody String rawJson) {
-        stagingService.receive(projectId, "wcag", rawJson);
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/fixes")
-    public ResponseEntity<Void> fixes(@PathVariable UUID projectId,
-                                      @RequestBody String rawJson) {
-        stagingService.receive(projectId, "fixes", rawJson);
+    @PostMapping("/complete")
+    public ResponseEntity<Void> complete(@PathVariable UUID projectId) {
+        CompletableFuture.runAsync(() -> s3ResultService.processFromS3(projectId));
         return ResponseEntity.ok().build();
     }
 }

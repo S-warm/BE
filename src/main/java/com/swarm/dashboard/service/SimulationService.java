@@ -89,9 +89,9 @@ public class SimulationService {
         Simulation saved = simulationRepository.save(simulation);
 
         String paramsJson = null;
-        if (request.getSuccessConditionParams() != null) {
+        if (request.getSuccessCondition() != null && request.getSuccessCondition().getRequiredParams() != null) {
             try {
-                paramsJson = objectMapper.writeValueAsString(request.getSuccessConditionParams());
+                paramsJson = objectMapper.writeValueAsString(request.getSuccessCondition().getRequiredParams());
             } catch (Exception e) {
                 log.warn("successConditionParams 직렬화 실패", e);
             }
@@ -99,22 +99,22 @@ public class SimulationService {
 
         SimulationSettings settings = SimulationSettings.builder()
                 .project(saved)
-                .goal(request.getGoal())
-                .successConditionPath(request.getSuccessConditionPath())
+                .goal(null)
+                .successConditionPath(request.getSuccessCondition() != null ? request.getSuccessCondition().getPath() : null)
                 .successConditionParams(paramsJson)
-                .ageCount10s(request.getAgeCount10s())
-                .ageCount20s(request.getAgeCount20s())
-                .ageCount30s(request.getAgeCount30s())
-                .ageCount40s(request.getAgeCount40s())
-                .ageCount50s(request.getAgeCount50s())
-                .ageCount60s(request.getAgeCount60s())
-                .ageCount70s(request.getAgeCount70s())
+                .ageCount10s(request.getAgeCount10())
+                .ageCount20s(request.getAgeCount20())
+                .ageCount30s(request.getAgeCount30())
+                .ageCount40s(request.getAgeCount40())
+                .ageCount50s(request.getAgeCount50())
+                .ageCount60s(request.getAgeCount60())
+                .ageCount70s(request.getAgeCount70())
                 .build();
 
         simulationSettingsRepository.save(settings);
 
         // Python에 비동기 전송
-        sendToPython(saved, settings);
+        sendToPython(saved, settings, request);
 
         return SimulationCreateResponse.builder()
                 .projectId(saved.getProjectId())
@@ -124,12 +124,15 @@ public class SimulationService {
                 .build();
     }
 
-    private void sendToPython(Simulation simulation, SimulationSettings settings) {
+    private void sendToPython(Simulation simulation, SimulationSettings settings, SimulationCreateRequest request) {
         try {
             Map<String, Object> requestBody = new LinkedHashMap<>();
             requestBody.put("project_id", simulation.getProjectId().toString());
             requestBody.put("target_url", simulation.getTargetUrl());
-            requestBody.put("goal", settings.getGoal());
+            requestBody.put("digital_literacy", request.getDigitalLiteracy());
+            requestBody.put("persona_device", request.getPersonaDevice());
+            if (request.getVisionImpairment() != null) requestBody.put("vision_impairment", request.getVisionImpairment());
+            if (request.getAttentionLevel() != null) requestBody.put("attention_level", request.getAttentionLevel());
             Object requiredParams = Map.of();
             if (settings.getSuccessConditionParams() != null) {
                 try {
