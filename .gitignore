@@ -1,5 +1,6 @@
 HELP.md
 REMAINING_WORK.md
+.env
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
