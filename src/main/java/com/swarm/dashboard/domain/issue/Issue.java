@@ -1,10 +1,11 @@
 package com.swarm.dashboard.domain.issue;
 
-import com.swarm.dashboard.config.StringListConverter;
 import com.swarm.dashboard.domain.page.SimulationPage;
 import com.swarm.dashboard.domain.simulation.Simulation;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -30,7 +31,7 @@ public class Issue {
     @JoinColumn(name = "page_id")
     private SimulationPage page;
 
-    @Convert(converter = StringListConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private List<String> tags;
 
