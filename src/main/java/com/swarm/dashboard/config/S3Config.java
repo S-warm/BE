@@ -8,6 +8,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
@@ -35,6 +36,14 @@ public class S3Config {
     @Bean
     public S3Presigner s3Presigner(S3Properties props) {
         return S3Presigner.builder()
+            .region(Region.of(props.region()))
+            .credentialsProvider(credentialsProvider(props))
+            .build();
+    }
+
+    @Bean
+    public Ec2Client ec2Client(S3Properties props) {
+        return Ec2Client.builder()
             .region(Region.of(props.region()))
             .credentialsProvider(credentialsProvider(props))
             .build();

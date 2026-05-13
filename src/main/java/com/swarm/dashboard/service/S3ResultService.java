@@ -1,13 +1,14 @@
 package com.swarm.dashboard.service;
 
-import com.swarm.dashboard.domain.simulation.Simulation;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swarm.dashboard.domain.simulation.SimulationRepository;
 import com.swarm.dashboard.util.S3FetchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -16,33 +17,33 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class S3ResultService {
 
-    // 나중에 Python 팀에서 경로 확정되면 이 상수만 교체
-    private static final String RESULT_DIR = "result";
-
     private final SimulationRepository simulationRepository;
     private final S3FetchService s3FetchService;
     private final SimulationProcessor processor;
+    private final ObjectMapper objectMapper;
 
-    public void processFromS3(UUID projectId) {
+    public void processFromDoneJson(UUID projectId, String jobId) {
         try {
-            Simulation simulation = simulationRepository.findById(projectId)
+            simulationRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + projectId));
 
-            if (!"pending".equals(simulation.getStatus())) return;
+            String doneJson = s3FetchService.fetchJson("done/" + jobId + ".json");
+            JsonNode done = objectMapper.readTree(doneJson);
 
-            String prefix = simulation.getDatePrefix() + "/" + RESULT_DIR + "/";
+            JsonNode resultsNode = done.get("results");
+            Map<String, String> results = new HashMap<>();
+            resultsNode.fields().forEachRemaining(e -> results.put(e.getKey(), e.getValue().asText()));
 
-            Map<String, String> payloads = new LinkedHashMap<>();
-            payloads.put("overview", s3FetchService.fetchJson(prefix + "overview.json"));
-            payloads.put("issues",   s3FetchService.fetchJson(prefix + "issues.json"));
-            payloads.put("heatmap",  s3FetchService.fetchJson(prefix + "heatmap.json"));
-            payloads.put("wcag",     s3FetchService.fetchJson(prefix + "wcag.json"));
-            payloads.put("fixes",    s3FetchService.fetchJson(prefix + "fixes.json"));
+            String titleSlug = done.has("title_slug") ? done.get("title_slug").asText() : null;
+            String datePrefix = done.has("date_prefix") ? done.get("date_prefix").asText() : null;
+            String screenshotsPrefix = (titleSlug != null && datePrefix != null)
+                ? "raw/" + titleSlug + "/logs/" + datePrefix + "/screenshots/"
+                : null;
 
-            processor.processAll(projectId, payloads);
+            processor.processAll(projectId, results, screenshotsPrefix);
 
         } catch (Exception e) {
-            log.error("S3 결과 처리 실패: projectId={}", projectId, e);
+            log.error("S3 결과 처리 실패: projectId={}, jobId={}", projectId, jobId, e);
             processor.markFailed(projectId);
         }
     }

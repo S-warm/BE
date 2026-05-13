@@ -26,6 +26,10 @@ public class SimulationCreateRequest {
     private String targetUrl;
 
     @NotBlank
+    @Schema(description = "AI 에이전트 수행 목표", example = "상품을 장바구니에 담고 결제 완료 페이지까지 이동하세요")
+    private String task;
+
+    @NotBlank
     @Schema(
             description = "디지털 리터러시 수준",
             example = "medium",
