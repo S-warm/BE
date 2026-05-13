@@ -58,7 +58,10 @@ public class FixProcessor {
             Issue issue = issueRepo.findByPage_IdAndTitle(
                     page.getId(), fix.issueTitle() != null ? fix.issueTitle().trim() : null)
                 .orElse(null);
-            if (issue == null) continue;
+            if (issue == null) {
+                log.warn("fix에 매칭되는 issue 없음: url={}, issueTitle={}", urlDto.url(), fix.issueTitle());
+                continue;
+            }
 
             AiFixSuggestion suggestion = AiFixSuggestion.builder()
                 .project(sim)

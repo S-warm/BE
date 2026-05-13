@@ -72,7 +72,7 @@ public class IssueProcessor {
                     .category(dto.category())
                     .subCategory(dto.subCategory())
                     .severity(severityUpper != null ? IssueSeverity.valueOf(severityUpper) : null)
-                    .title(dto.title() != null ? dto.title().trim() : null)
+                    .title(dto.title() != null && !dto.title().isBlank() ? dto.title().trim() : null)
                     .description(dto.description())
                     .targetHtml(dto.targetHtml())
                     .tags(dto.tags())
