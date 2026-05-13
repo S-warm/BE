@@ -115,8 +115,8 @@ public class SimulationService {
 
         simulationSettingsRepository.save(settings);
 
-        // Python에 비동기 전송
-        sendToPython(saved, settings, request);
+        // EC2 start → Python 호출 → 폴링 → EC2 stop (비동기)
+        simulationPoller.startPolling(saved.getProjectId(), buildPythonRequestBody(settings, request));
 
         return SimulationCreateResponse.builder()
                 .projectId(saved.getProjectId())
@@ -126,64 +126,34 @@ public class SimulationService {
                 .build();
     }
 
-    private void sendToPython(Simulation simulation, SimulationSettings settings, SimulationCreateRequest request) {
-        try {
-            Map<String, Object> requestBody = new LinkedHashMap<>();
-            requestBody.put("title", simulation.getTitle());
-            requestBody.put("target_url", simulation.getTargetUrl());
-            requestBody.put("task", request.getTask());
+    private Map<String, Object> buildPythonRequestBody(SimulationSettings settings, SimulationCreateRequest request) {
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("title", request.getTitle());
+        requestBody.put("target_url", request.getTargetUrl());
+        requestBody.put("task", request.getTask());
 
-            Object requiredParams = Map.of();
-            if (settings.getSuccessConditionParams() != null) {
-                try {
-                    requiredParams = objectMapper.readValue(settings.getSuccessConditionParams(), Map.class);
-                } catch (Exception e) {
-                    log.warn("successConditionParams 역직렬화 실패, 빈 객체로 대체", e);
-                }
+        Object requiredParams = Map.of();
+        if (settings.getSuccessConditionParams() != null) {
+            try {
+                requiredParams = objectMapper.readValue(settings.getSuccessConditionParams(), Map.class);
+            } catch (Exception e) {
+                log.warn("successConditionParams 역직렬화 실패, 빈 객체로 대체", e);
             }
-            requestBody.put("success_condition", Map.of(
-                "path", settings.getSuccessConditionPath() != null ? settings.getSuccessConditionPath() : "",
-                "required_params", requiredParams
-            ));
-
-            if (settings.getAgeCount10s() != null) requestBody.put("age_count_10", settings.getAgeCount10s());
-            if (settings.getAgeCount20s() != null) requestBody.put("age_count_20", settings.getAgeCount20s());
-            if (settings.getAgeCount30s() != null) requestBody.put("age_count_30", settings.getAgeCount30s());
-            if (settings.getAgeCount40s() != null) requestBody.put("age_count_40", settings.getAgeCount40s());
-            if (settings.getAgeCount50s() != null) requestBody.put("age_count_50", settings.getAgeCount50s());
-            if (settings.getAgeCount60s() != null) requestBody.put("age_count_60", settings.getAgeCount60s());
-            if (settings.getAgeCount70s() != null) requestBody.put("age_count_70", settings.getAgeCount70s());
-
-            webClient
-                .post()
-                .uri(pythonEndpointUrl + "/simulate")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .timeout(java.time.Duration.ofSeconds(30))
-                .subscribe(
-                    response -> {
-                        if (response != null && response.get("job_id") != null) {
-                            String jobId = response.get("job_id").toString();
-                            simulationRepository.findById(simulation.getProjectId()).ifPresent(s -> {
-                                s.setJobId(jobId);
-                                simulationRepository.save(s);
-                            });
-                            log.info("Python job_id 수신: projectId={}, jobId={}", simulation.getProjectId(), jobId);
-                            simulationPoller.startPolling(simulation.getProjectId(), jobId);
-                        }
-                    },
-                    err -> {
-                        log.error("Python 전송 실패: projectId={}", simulation.getProjectId(), err);
-                        simulationRepository.findById(simulation.getProjectId()).ifPresent(s -> {
-                            s.setStatus("failed");
-                            simulationRepository.save(s);
-                        });
-                    }
-                );
-        } catch (Exception e) {
-            log.error("Python 전송 준비 실패: projectId={}", simulation.getProjectId(), e);
         }
+        requestBody.put("success_condition", Map.of(
+            "path", settings.getSuccessConditionPath() != null ? settings.getSuccessConditionPath() : "",
+            "required_params", requiredParams
+        ));
+
+        if (settings.getAgeCount10s() != null) requestBody.put("age_count_10", settings.getAgeCount10s());
+        if (settings.getAgeCount20s() != null) requestBody.put("age_count_20", settings.getAgeCount20s());
+        if (settings.getAgeCount30s() != null) requestBody.put("age_count_30", settings.getAgeCount30s());
+        if (settings.getAgeCount40s() != null) requestBody.put("age_count_40", settings.getAgeCount40s());
+        if (settings.getAgeCount50s() != null) requestBody.put("age_count_50", settings.getAgeCount50s());
+        if (settings.getAgeCount60s() != null) requestBody.put("age_count_60", settings.getAgeCount60s());
+        if (settings.getAgeCount70s() != null) requestBody.put("age_count_70", settings.getAgeCount70s());
+
+        return requestBody;
     }
 
     // ────────────────────────────────────────
