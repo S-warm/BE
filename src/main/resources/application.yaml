@@ -47,3 +47,5 @@ aws:
     access-key: ${AWS_ACCESS_KEY:}
     secret-key: ${AWS_SECRET_KEY:}
     presigned-url-duration: ${AWS_PRESIGNED_URL_DURATION:3600}
+  ai-ec2:
+    instance-id: ${AI_EC2_INSTANCE_ID:}

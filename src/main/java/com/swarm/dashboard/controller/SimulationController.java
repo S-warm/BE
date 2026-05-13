@@ -7,6 +7,7 @@ import com.swarm.dashboard.dto.response.SimulationHeatmapResponse;
 import com.swarm.dashboard.dto.response.SimulationIssuesResponse;
 import com.swarm.dashboard.dto.response.SimulationListResponse;
 import com.swarm.dashboard.dto.response.SimulationOverviewResponse;
+import com.swarm.dashboard.dto.response.SimulationStatusResponse;
 import com.swarm.dashboard.dto.response.SimulationWcagResponse;
 import com.swarm.dashboard.service.SimulationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,6 +40,15 @@ public class SimulationController {
     ) {
         SimulationCreateResponse response = simulationService.createSimulation(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/{projectId}/status")
+    @Operation(summary = "시뮬레이션 진행 상태 조회")
+    public ResponseEntity<SimulationStatusResponse> getStatus(
+            @Parameter(description = "프로젝트 ID", required = true)
+            @PathVariable UUID projectId
+    ) {
+        return ResponseEntity.ok(simulationService.getStatus(projectId));
     }
 
     @GetMapping
