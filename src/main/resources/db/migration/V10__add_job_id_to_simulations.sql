@@ -1,0 +1,1 @@
+ALTER TABLE simulations ADD COLUMN IF NOT EXISTS job_id VARCHAR(36);

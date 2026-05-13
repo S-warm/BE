@@ -36,6 +36,10 @@ public class Simulation {
     @Column(name = "date_prefix", length = 30)
     private String datePrefix;
 
+    @Setter
+    @Column(name = "job_id", length = 36)
+    private String jobId;
+
     @Column(name = "started_at")
     private OffsetDateTime startedAt;
 

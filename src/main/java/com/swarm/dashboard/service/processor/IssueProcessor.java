@@ -7,6 +7,7 @@ import com.swarm.dashboard.domain.simulation.Simulation;
 import com.swarm.dashboard.domain.simulation.SimulationRepository;
 import com.swarm.dashboard.dto.aicallback.IssuesRequest;
 import com.swarm.dashboard.util.S3PresignService;
+import com.swarm.dashboard.util.UrlKeyEncoder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +26,7 @@ public class IssueProcessor {
     private final IssueSessionRepository sessionRepo;
     private final S3PresignService s3PresignService;
 
-    public Map<String, UUID> process(UUID projectId, IssuesRequest req) {
+    public Map<String, UUID> process(UUID projectId, IssuesRequest req, String screenshotsPrefix) {
         Simulation sim = simRepo.findById(projectId).orElseThrow();
         Map<String, UUID> issueIndexMap = new HashMap<>();
 
@@ -41,13 +42,18 @@ public class IssueProcessor {
             List<IssuesRequest.IssueDto> urlIssues = entry.getValue();
 
             // 2-1) simulation_pages upsert (page_order는 다음 순번으로)
+            String encodedUrl = UrlKeyEncoder.encode(url);
+            String screenshotKey = (screenshotsPrefix != null)
+                ? screenshotsPrefix + encodedUrl + ".png"
+                : null;
+
             SimulationPage page = pageRepo.findByProject_ProjectIdAndUrl(projectId, url)
                 .orElseGet(() -> {
                     Integer nextOrder = pageRepo.findMaxPageOrderByProjectId(projectId) + 1;
                     SimulationPage p = SimulationPage.builder()
                         .project(sim)
                         .url(url)
-                        .screenshotUrl(s3PresignService.extractKey(urlIssues.get(0).screenshotUrl()))
+                        .screenshotUrl(screenshotKey)
                         .pageOrder(nextOrder)
                         .build();
                     return pageRepo.save(p);

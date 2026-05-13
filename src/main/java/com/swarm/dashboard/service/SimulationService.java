@@ -55,6 +55,7 @@ public class SimulationService {
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
     private final S3PresignService s3PresignService;
+    private final SimulationPoller simulationPoller;
 
     @Value("${python.endpoint-url}")
     private String pythonEndpointUrl;
@@ -127,12 +128,10 @@ public class SimulationService {
     private void sendToPython(Simulation simulation, SimulationSettings settings, SimulationCreateRequest request) {
         try {
             Map<String, Object> requestBody = new LinkedHashMap<>();
-            requestBody.put("project_id", simulation.getProjectId().toString());
+            requestBody.put("title", simulation.getTitle());
             requestBody.put("target_url", simulation.getTargetUrl());
-            requestBody.put("digital_literacy", request.getDigitalLiteracy());
-            requestBody.put("persona_device", request.getPersonaDevice());
-            if (request.getVisionImpairment() != null) requestBody.put("vision_impairment", request.getVisionImpairment());
-            if (request.getAttentionLevel() != null) requestBody.put("attention_level", request.getAttentionLevel());
+            requestBody.put("task", request.getTask());
+
             Object requiredParams = Map.of();
             if (settings.getSuccessConditionParams() != null) {
                 try {
@@ -145,18 +144,34 @@ public class SimulationService {
                 "path", settings.getSuccessConditionPath() != null ? settings.getSuccessConditionPath() : "",
                 "required_params", requiredParams
             ));
-            requestBody.put("personas", buildPersonasMap(settings));
-            requestBody.put("date_prefix", simulation.getDatePrefix());
+
+            if (settings.getAgeCount10s() != null) requestBody.put("age_count_10", settings.getAgeCount10s());
+            if (settings.getAgeCount20s() != null) requestBody.put("age_count_20", settings.getAgeCount20s());
+            if (settings.getAgeCount30s() != null) requestBody.put("age_count_30", settings.getAgeCount30s());
+            if (settings.getAgeCount40s() != null) requestBody.put("age_count_40", settings.getAgeCount40s());
+            if (settings.getAgeCount50s() != null) requestBody.put("age_count_50", settings.getAgeCount50s());
+            if (settings.getAgeCount60s() != null) requestBody.put("age_count_60", settings.getAgeCount60s());
+            if (settings.getAgeCount70s() != null) requestBody.put("age_count_70", settings.getAgeCount70s());
 
             webClient
                 .post()
-                .uri(pythonEndpointUrl)
+                .uri(pythonEndpointUrl + "/simulate")
                 .bodyValue(requestBody)
                 .retrieve()
-                .bodyToMono(Void.class)
+                .bodyToMono(Map.class)
                 .timeout(java.time.Duration.ofSeconds(30))
                 .subscribe(
-                    null,
+                    response -> {
+                        if (response != null && response.get("job_id") != null) {
+                            String jobId = response.get("job_id").toString();
+                            simulationRepository.findById(simulation.getProjectId()).ifPresent(s -> {
+                                s.setJobId(jobId);
+                                simulationRepository.save(s);
+                            });
+                            log.info("Python job_id 수신: projectId={}, jobId={}", simulation.getProjectId(), jobId);
+                            simulationPoller.startPolling(simulation.getProjectId(), jobId);
+                        }
+                    },
                     err -> {
                         log.error("Python 전송 실패: projectId={}", simulation.getProjectId(), err);
                         simulationRepository.findById(simulation.getProjectId()).ifPresent(s -> {
@@ -170,16 +185,47 @@ public class SimulationService {
         }
     }
 
-    private Map<String, Integer> buildPersonasMap(SimulationSettings s) {
-        Map<String, Integer> map = new LinkedHashMap<>();
-        if (s.getAgeCount10s() != null && s.getAgeCount10s() > 0) map.put("10s", s.getAgeCount10s());
-        if (s.getAgeCount20s() != null && s.getAgeCount20s() > 0) map.put("20s", s.getAgeCount20s());
-        if (s.getAgeCount30s() != null && s.getAgeCount30s() > 0) map.put("30s", s.getAgeCount30s());
-        if (s.getAgeCount40s() != null && s.getAgeCount40s() > 0) map.put("40s", s.getAgeCount40s());
-        if (s.getAgeCount50s() != null && s.getAgeCount50s() > 0) map.put("50s", s.getAgeCount50s());
-        if (s.getAgeCount60s() != null && s.getAgeCount60s() > 0) map.put("60s", s.getAgeCount60s());
-        if (s.getAgeCount70s() != null && s.getAgeCount70s() > 0) map.put("70s", s.getAgeCount70s());
-        return map;
+    // ────────────────────────────────────────
+    // GET - 시뮬레이션 진행 상태 조회
+    // ────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public SimulationStatusResponse getStatus(UUID projectId) {
+        Simulation simulation = simulationRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + projectId));
+
+        String dbStatus = simulation.getStatus();
+
+        // completed/failed는 DB 값 그대로 반환
+        if ("completed".equals(dbStatus) || "failed".equals(dbStatus) || "pending".equals(dbStatus)) {
+            return SimulationStatusResponse.builder().status(dbStatus).build();
+        }
+
+        // running/analyzing 중에는 Python에 폴링해서 최신 상태 반환
+        String jobId = simulation.getJobId();
+        if (jobId == null) {
+            return SimulationStatusResponse.builder().status(dbStatus).build();
+        }
+
+        try {
+            Map response = webClient.get()
+                .uri(pythonEndpointUrl + "/status/" + jobId)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .timeout(java.time.Duration.ofSeconds(5))
+                .block();
+
+            if (response == null) return SimulationStatusResponse.builder().status(dbStatus).build();
+
+            return SimulationStatusResponse.builder()
+                .status(response.getOrDefault("status", dbStatus).toString())
+                .completed(response.get("completed") != null ? (Integer) response.get("completed") : null)
+                .total(response.get("total") != null ? (Integer) response.get("total") : null)
+                .failed(response.get("failed") != null ? (Integer) response.get("failed") : null)
+                .build();
+        } catch (Exception e) {
+            log.warn("Python /status 폴링 실패: jobId={}", jobId, e);
+            return SimulationStatusResponse.builder().status(dbStatus).build();
+        }
     }
 
     // ────────────────────────────────────────

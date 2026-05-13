@@ -5,6 +5,7 @@ import com.swarm.dashboard.domain.simulation.Simulation;
 import com.swarm.dashboard.domain.simulation.SimulationRepository;
 import com.swarm.dashboard.dto.aicallback.*;
 import com.swarm.dashboard.service.processor.*;
+import com.swarm.dashboard.util.S3FetchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class SimulationProcessor {
 
     private final SimulationRepository simRepo;
     private final ObjectMapper objectMapper;
+    private final S3FetchService s3FetchService;
 
     private final OverviewProcessor overviewProcessor;
     private final IssueProcessor issueProcessor;
@@ -29,20 +31,24 @@ public class SimulationProcessor {
     private final WcagProcessor wcagProcessor;
     private final FixProcessor fixProcessor;
 
+    // done.json의 results 맵과 screenshotsPrefix를 받아서 처리
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-    public void processAll(UUID projectId, Map<String, String> payloads) throws Exception {
-        OverviewRequest overviewReq = objectMapper.readValue(payloads.get("overview"), OverviewRequest.class);
-        IssuesRequest issuesReq = objectMapper.readValue(payloads.get("issues"), IssuesRequest.class);
-        HeatmapRequest heatmapReq = objectMapper.readValue(payloads.get("heatmap"), HeatmapRequest.class);
-        WcagRequest wcagReq = objectMapper.readValue(payloads.get("wcag"), WcagRequest.class);
-        FixesRequest fixesReq = objectMapper.readValue(payloads.get("fixes"), FixesRequest.class);
+    public void processAll(UUID projectId, Map<String, String> results, String screenshotsPrefix) throws Exception {
+        OverviewRequest overviewReq = objectMapper.readValue(
+            s3FetchService.fetchJsonFromS3Uri(results.get("summary_aggregation")), OverviewRequest.class);
+        IssuesRequest issuesReq = objectMapper.readValue(
+            s3FetchService.fetchJsonFromS3Uri(results.get("final_issues")), IssuesRequest.class);
+        HeatmapRequest heatmapReq = objectMapper.readValue(
+            s3FetchService.fetchJsonFromS3Uri(results.get("heatmap_aggregation")), HeatmapRequest.class);
+        WcagRequest wcagReq = objectMapper.readValue(
+            s3FetchService.fetchJsonFromS3Uri(results.get("wcag")), WcagRequest.class);
 
         // 순서 중요: issues 먼저 (issueIndexMap 생성) → heatmap, fixes가 사용
         overviewProcessor.process(projectId, overviewReq);
-        Map<String, UUID> issueIndexMap = issueProcessor.process(projectId, issuesReq);
+        Map<String, UUID> issueIndexMap = issueProcessor.process(projectId, issuesReq, screenshotsPrefix);
         heatmapProcessor.process(projectId, heatmapReq, issueIndexMap);
         wcagProcessor.process(projectId, wcagReq);
-        fixProcessor.process(projectId, fixesReq);
+        fixProcessor.process(projectId, s3FetchService.s3UriToKey(results.get("fixes")));
 
         Simulation sim = simRepo.findById(projectId).orElseThrow();
         sim.setStatus("completed");
