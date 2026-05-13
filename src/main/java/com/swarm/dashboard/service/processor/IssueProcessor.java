@@ -92,25 +92,26 @@ public class IssueProcessor {
                             IssuesRequest.AffectedPersonaDto::personaAge,
                             Collectors.counting()
                         ));
+                    List<IssueAgeStats> statsList = new ArrayList<>();
                     for (Map.Entry<String, Long> as : ageStatsMap.entrySet()) {
                         IssueAgeStatsId stId = new IssueAgeStatsId(issue.getId(), as.getKey());
-                        IssueAgeStats stats = IssueAgeStats.builder()
+                        statsList.add(IssueAgeStats.builder()
                             .id(stId)
                             .issue(issue)
                             .affectedUsers(as.getValue().intValue())
-                            .build();
-                        ageStatsRepo.save(stats);
+                            .build());
                     }
+                    ageStatsRepo.saveAll(statsList);
 
                     // 2-5) affected_personas 각 항목을 IssueSession에 1:1 저장
-                    for (IssuesRequest.AffectedPersonaDto p : dto.affectedPersonas()) {
-                        IssueSession sess = IssueSession.builder()
+                    List<IssueSession> sessions = dto.affectedPersonas().stream()
+                        .map(p -> IssueSession.builder()
                             .issue(issue)
-                            .ageBand(p.personaAge())  // "20s" 그대로 저장
+                            .ageBand(p.personaAge())
                             .sessionId(p.sessionId())
-                            .build();
-                        sessionRepo.save(sess);
-                    }
+                            .build())
+                        .collect(Collectors.toList());
+                    sessionRepo.saveAll(sessions);
                 }
             }
         }

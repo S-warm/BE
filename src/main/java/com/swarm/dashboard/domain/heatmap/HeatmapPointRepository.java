@@ -6,5 +6,6 @@ import java.util.UUID;
 
 public interface HeatmapPointRepository extends JpaRepository<HeatmapPoint, UUID> {
     List<HeatmapPoint> findByProject_ProjectId(UUID projectId);
+    List<HeatmapPoint> findByProject_ProjectIdAndAgeBand(UUID projectId, String ageBand);
     List<HeatmapPoint> findByPage_Id(UUID pageId);
 }

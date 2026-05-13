@@ -32,7 +32,9 @@ public class S3ResultService {
 
             JsonNode resultsNode = done.get("results");
             Map<String, String> results = new HashMap<>();
-            resultsNode.fields().forEachRemaining(e -> results.put(e.getKey(), e.getValue().asText()));
+            if (resultsNode != null && resultsNode.isObject()) {
+                resultsNode.fields().forEachRemaining(e -> results.put(e.getKey(), e.getValue().asText()));
+            }
 
             String titleSlug = done.has("title_slug") ? done.get("title_slug").asText() : null;
             String datePrefix = done.has("date_prefix") ? done.get("date_prefix").asText() : null;

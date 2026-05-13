@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,6 +31,7 @@ public class HeatmapProcessor {
 
     public void process(UUID projectId, HeatmapRequest req, Map<String, UUID> issueIndexMap) {
         Simulation sim = simRepo.findById(projectId).orElseThrow();
+        List<HeatmapPoint> points = new ArrayList<>();
 
         for (HeatmapRequest.ErrorPointDto dto : req.errorPoints()) {
             // 1) URL로 simulation_pages upsert (page_order는 다음 순번으로)
@@ -45,24 +48,24 @@ public class HeatmapProcessor {
                 });
 
             // 2) issueId 매핑
-            UUID issueUuid = issueIndexMap.get(dto.issueId());  // null이면 매핑 없음
+            UUID issueUuid = issueIndexMap.get(dto.issueId());
             Issue issue = (issueUuid != null)
                 ? issueRepo.findById(issueUuid).orElse(null)
                 : null;
 
-            // 3) HeatmapPoint INSERT
-            HeatmapPoint point = HeatmapPoint.builder()
+            points.add(HeatmapPoint.builder()
                 .project(sim)
                 .page(page)
                 .issue(issue)
                 .x(BigDecimal.valueOf(dto.x()))
                 .y(BigDecimal.valueOf(dto.y()))
-                .ageBand(dto.ageBand())          // "20s" 그대로
+                .ageBand(dto.ageBand())
                 .count(dto.count())
-                .severity(dto.severity())        // 대문자 그대로
-                .errorType(dto.errorType())      // 한글 그대로
-                .build();
-            pointRepo.save(point);
+                .severity(dto.severity())
+                .errorType(dto.errorType())
+                .build());
         }
+
+        pointRepo.saveAll(points);
     }
 }

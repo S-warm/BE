@@ -22,6 +22,7 @@ import com.swarm.dashboard.dto.request.SimulationCreateRequest;
 import com.swarm.dashboard.dto.response.*;
 import com.swarm.dashboard.util.AgeBandConverter;
 import com.swarm.dashboard.util.S3PresignService;
+import com.swarm.dashboard.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -73,7 +74,7 @@ public class SimulationService {
     @Transactional
     public SimulationCreateResponse createSimulation(UUID userId, SimulationCreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다. id=" + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다. id=" + userId));
 
         String datePrefix = LocalDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
@@ -191,7 +192,7 @@ public class SimulationService {
     @Transactional(readOnly = true)
     public SimulationStatusResponse getStatus(UUID projectId) {
         Simulation simulation = simulationRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("시뮬레이션을 찾을 수 없습니다. id=" + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException("시뮬레이션을 찾을 수 없습니다. id=" + projectId));
 
         String dbStatus = simulation.getStatus();
 
@@ -218,9 +219,9 @@ public class SimulationService {
 
             return SimulationStatusResponse.builder()
                 .status(response.getOrDefault("status", dbStatus).toString())
-                .completed(response.get("completed") != null ? (Integer) response.get("completed") : null)
-                .total(response.get("total") != null ? (Integer) response.get("total") : null)
-                .failed(response.get("failed") != null ? (Integer) response.get("failed") : null)
+                .completed(response.get("completed") != null ? ((Number) response.get("completed")).intValue() : null)
+                .total(response.get("total") != null ? ((Number) response.get("total")).intValue() : null)
+                .failed(response.get("failed") != null ? ((Number) response.get("failed")).intValue() : null)
                 .build();
         } catch (Exception e) {
             log.warn("Python /status 폴링 실패: jobId={}", jobId, e);
@@ -250,7 +251,7 @@ public class SimulationService {
     @Transactional(readOnly = true)
     public SimulationOverviewResponse getOverview(UUID projectId) {
         SimulationOverview overview = simulationOverviewRepository.findByProjectId(projectId)
-                .orElseThrow(() -> new RuntimeException("Overview 데이터를 찾을 수 없습니다. id=" + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException("Overview 데이터를 찾을 수 없습니다. id=" + projectId));
 
         List<AgeOverview> ageOverviews = ageOverviewRepository.findByProject_ProjectId(projectId);
 
@@ -373,14 +374,10 @@ public class SimulationService {
     public SimulationHeatmapResponse getHeatmap(UUID projectId, String ageGroup, int pageNum, int size) {
         List<SimulationPage> simPages = simulationPageRepository.findByProject_ProjectIdOrderByPageOrder(projectId);
 
-        List<HeatmapPoint> allPoints = heatmapPointRepository.findByProject_ProjectId(projectId);
-
-        // 연령대 필터 (영문 코드로 변환)
         List<HeatmapPoint> filteredPoints = "all".equals(ageGroup)
-                ? allPoints
-                : allPoints.stream()
-                    .filter(p -> ageGroup.equals(AgeBandConverter.toKorean(p.getAgeBand())))
-                    .collect(Collectors.toList());
+                ? heatmapPointRepository.findByProject_ProjectId(projectId)
+                : heatmapPointRepository.findByProject_ProjectIdAndAgeBand(
+                        projectId, AgeBandConverter.toEnglish(ageGroup));
 
         Map<UUID, List<HeatmapPoint>> pointsByPageId = filteredPoints.stream()
                 .collect(Collectors.groupingBy(p -> p.getPage().getId()));

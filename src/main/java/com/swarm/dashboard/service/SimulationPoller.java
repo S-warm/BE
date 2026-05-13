@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Duration;
@@ -78,7 +79,8 @@ public class SimulationPoller {
         markFailed(projectId);
     }
 
-    private void updateDbStatus(UUID projectId, String status) {
+    @Transactional
+    public void updateDbStatus(UUID projectId, String status) {
         simulationRepository.findById(projectId).ifPresent(s -> {
             if (!status.equals(s.getStatus())) {
                 s.setStatus(status);
@@ -87,7 +89,8 @@ public class SimulationPoller {
         });
     }
 
-    private void markFailed(UUID projectId) {
+    @Transactional
+    public void markFailed(UUID projectId) {
         simulationRepository.findById(projectId).ifPresent(s -> {
             s.setStatus("failed");
             simulationRepository.save(s);
