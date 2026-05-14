@@ -3,8 +3,7 @@ services:
     build: .
     container_name: uxswarm-app
     restart: always
-    ports:
-      - "8080:8080"
+    network_mode: host
     env_file:
       - .env
     profiles:
