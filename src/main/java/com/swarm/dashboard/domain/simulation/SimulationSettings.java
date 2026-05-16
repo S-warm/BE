@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -31,7 +32,7 @@ public class SimulationSettings {
 
     @Column(name = "success_condition_params", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String successConditionParams;
+    private Map<String, Object> successConditionParams;
 
     @Column(name = "age_count_10s")
     private Integer ageCount10s;

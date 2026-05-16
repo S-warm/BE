@@ -90,20 +90,13 @@ public class SimulationService {
 
         Simulation saved = simulationRepository.save(simulation);
 
-        String paramsJson = null;
-        if (request.getSuccessCondition() != null && request.getSuccessCondition().getRequiredParams() != null) {
-            try {
-                paramsJson = objectMapper.writeValueAsString(request.getSuccessCondition().getRequiredParams());
-            } catch (Exception e) {
-                log.warn("successConditionParams 직렬화 실패", e);
-            }
-        }
-
         SimulationSettings settings = SimulationSettings.builder()
                 .project(saved)
                 .goal(null)
                 .successConditionPath(request.getSuccessCondition() != null ? request.getSuccessCondition().getPath() : null)
-                .successConditionParams(paramsJson)
+                .successConditionParams(request.getSuccessCondition() != null && request.getSuccessCondition().getRequiredParams() != null
+                        ? new java.util.HashMap<>(request.getSuccessCondition().getRequiredParams())
+                        : null)
                 .ageCount10s(request.getAgeCount10())
                 .ageCount20s(request.getAgeCount20())
                 .ageCount30s(request.getAgeCount30())
@@ -132,14 +125,9 @@ public class SimulationService {
         requestBody.put("target_url", request.getTargetUrl());
         requestBody.put("task", request.getTask());
 
-        Object requiredParams = Map.of();
-        if (settings.getSuccessConditionParams() != null) {
-            try {
-                requiredParams = objectMapper.readValue(settings.getSuccessConditionParams(), Map.class);
-            } catch (Exception e) {
-                log.warn("successConditionParams 역직렬화 실패, 빈 객체로 대체", e);
-            }
-        }
+        Object requiredParams = settings.getSuccessConditionParams() != null
+                ? settings.getSuccessConditionParams()
+                : Map.of();
         requestBody.put("success_condition", Map.of(
             "path", settings.getSuccessConditionPath() != null ? settings.getSuccessConditionPath() : "",
             "required_params", requiredParams
