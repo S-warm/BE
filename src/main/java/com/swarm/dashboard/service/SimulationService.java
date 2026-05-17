@@ -199,6 +199,7 @@ public class SimulationService {
                         .title(s.getTitle())
                         .status(s.getStatus())
                         .createdAt(s.getCreatedAt())
+                        .targetUrl(s.getTargetUrl())
                         .build())
                 .collect(Collectors.toList());
     }

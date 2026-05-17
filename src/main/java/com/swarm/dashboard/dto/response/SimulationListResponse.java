@@ -23,4 +23,7 @@ public class SimulationListResponse {
 
     @Schema(description = "생성 일시", example = "2026-04-11T10:30:45+09:00")
     private OffsetDateTime createdAt;
+
+    @Schema(description = "테스트 대상 URL", example = "https://automationexercise.com")
+    private String targetUrl;
 }
