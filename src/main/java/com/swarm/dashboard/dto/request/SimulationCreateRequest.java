@@ -18,15 +18,15 @@ import java.util.Map;
 public class SimulationCreateRequest {
 
     @NotBlank
-    @Schema(description = "시뮬레이션 프로젝트 제목 (사이드바 표시)", example = "Q1 2026 체크아웃 플로우 UX 테스트")
+    @Schema(description = "시뮬레이션 프로젝트 제목 (사이드바 표시)", example = "test-0515-2")
     private String title;
 
     @NotBlank
-    @Schema(description = "테스트 대상 URL", example = "https://shopping-mall.com/checkout")
+    @Schema(description = "테스트 대상 URL", example = "https://automationexercise.com/products")
     private String targetUrl;
 
     @NotBlank
-    @Schema(description = "AI 에이전트 수행 목표", example = "상품을 장바구니에 담고 결제 완료 페이지까지 이동하세요")
+    @Schema(description = "AI 에이전트 수행 목표", example = "상품 목록에서 첫 번째 View Product 버튼 클릭")
     private String task;
 
     @NotBlank
@@ -56,7 +56,7 @@ public class SimulationCreateRequest {
 
     @NotNull
     @Min(0)
-    @Schema(description = "20대 페르소나 수", example = "100")
+    @Schema(description = "20대 페르소나 수", example = "2")
     private Integer ageCount20;
 
     @NotNull
@@ -71,7 +71,7 @@ public class SimulationCreateRequest {
 
     @NotNull
     @Min(0)
-    @Schema(description = "50대 페르소나 수", example = "100")
+    @Schema(description = "50대 페르소나 수", example = "0")
     private Integer ageCount50;
 
     @NotNull
@@ -81,7 +81,7 @@ public class SimulationCreateRequest {
 
     @NotNull
     @Min(0)
-    @Schema(description = "70대 페르소나 수", example = "100")
+    @Schema(description = "70대 페르소나 수", example = "0")
     private Integer ageCount70;
 
     @Min(0) @Max(100)
@@ -97,10 +97,10 @@ public class SimulationCreateRequest {
     @NoArgsConstructor
     public static class SuccessCondition {
         @NotBlank
-        @Schema(description = "도달해야 할 URL path", example = "/journal/articleDetail")
+        @Schema(description = "도달해야 할 URL path", example = "/product_details")
         private String path;
 
-        @Schema(description = "URL에 포함되어야 할 query params", example = "{\"nodeId\": \"NODE12728926\"}")
+        @Schema(description = "URL에 포함되어야 할 query params", example = "{}")
         private Map<String, String> requiredParams;
     }
 }
