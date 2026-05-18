@@ -40,6 +40,10 @@ public class Simulation {
     @Column(name = "job_id", length = 36)
     private String jobId;
 
+    public void updateStatus(String status) {
+        this.status = status;
+    }
+
     @Column(name = "started_at")
     private OffsetDateTime startedAt;
 

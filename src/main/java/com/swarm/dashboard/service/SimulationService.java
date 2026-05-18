@@ -147,7 +147,7 @@ public class SimulationService {
     // ────────────────────────────────────────
     // GET - 시뮬레이션 진행 상태 조회
     // ────────────────────────────────────────
-    @Transactional(readOnly = true)
+    @Transactional
     public SimulationStatusResponse getStatus(UUID projectId) {
         Simulation simulation = simulationRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("시뮬레이션을 찾을 수 없습니다. id=" + projectId));
@@ -175,15 +175,26 @@ public class SimulationService {
 
             if (response == null) return SimulationStatusResponse.builder().status(dbStatus).build();
 
+            String pythonStatus = response.getOrDefault("status", dbStatus).toString();
+
+            // Python이 failed/error 반환하면 DB도 failed로 업데이트
+            if ("failed".equals(pythonStatus) || "error".equals(pythonStatus)) {
+                simulation.updateStatus("failed");
+                simulationRepository.save(simulation);
+                return SimulationStatusResponse.builder().status("failed").build();
+            }
+
             return SimulationStatusResponse.builder()
-                .status(response.getOrDefault("status", dbStatus).toString())
+                .status(pythonStatus)
                 .completed(response.get("completed") != null ? ((Number) response.get("completed")).intValue() : null)
                 .total(response.get("total") != null ? ((Number) response.get("total")).intValue() : null)
                 .failed(response.get("failed") != null ? ((Number) response.get("failed")).intValue() : null)
                 .build();
         } catch (Exception e) {
             log.warn("Python /status 폴링 실패: jobId={}", jobId, e);
-            return SimulationStatusResponse.builder().status(dbStatus).build();
+            simulation.updateStatus("failed");
+            simulationRepository.save(simulation);
+            return SimulationStatusResponse.builder().status("failed").build();
         }
     }
 
