@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/simulations")
 @RequiredArgsConstructor
@@ -38,6 +40,13 @@ public class SimulationController {
             @RequestParam UUID userId,
             @Valid @RequestBody SimulationCreateRequest request
     ) {
+        log.info("[시뮬레이션 생성 요청] userId={}, title={}, targetUrl={}, task={}, digitalLiteracy={}, personaDevice={}, successCondition={path={}, requiredParams={}}, ageCounts=[10={}, 20={}, 30={}, 40={}, 50={}, 60={}, 70={}]",
+                userId, request.getTitle(), request.getTargetUrl(), request.getTask(),
+                request.getDigitalLiteracy(), request.getPersonaDevice(),
+                request.getSuccessCondition() != null ? request.getSuccessCondition().getPath() : null,
+                request.getSuccessCondition() != null ? request.getSuccessCondition().getRequiredParams() : null,
+                request.getAgeCount10(), request.getAgeCount20(), request.getAgeCount30(),
+                request.getAgeCount40(), request.getAgeCount50(), request.getAgeCount60(), request.getAgeCount70());
         SimulationCreateResponse response = simulationService.createSimulation(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

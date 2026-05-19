@@ -18,7 +18,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SimulationPoller {
 
-    private static final int POLL_INTERVAL_MS = 3000;
+    private static final int POLL_INTERVAL_MS = 5000;
     private static final int TIMEOUT_MS = 30 * 60 * 1000; // 30분
 
     private final SimulationRepository simulationRepository;

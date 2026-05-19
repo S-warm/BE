@@ -109,7 +109,9 @@ public class SimulationService {
         simulationSettingsRepository.save(settings);
 
         // EC2 start → Python 호출 → 폴링 → EC2 stop (비동기)
-        simulationPoller.startPolling(saved.getProjectId(), buildPythonRequestBody(settings, request));
+        Map<String, Object> pythonBody = buildPythonRequestBody(settings, request);
+        log.info("[AI 전송 바디] projectId={}, body={}", saved.getProjectId(), pythonBody);
+        simulationPoller.startPolling(saved.getProjectId(), pythonBody);
 
         return SimulationCreateResponse.builder()
                 .projectId(saved.getProjectId())
