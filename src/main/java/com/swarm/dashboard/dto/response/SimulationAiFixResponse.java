@@ -1,5 +1,6 @@
 package com.swarm.dashboard.dto.response;
 
+import com.swarm.dashboard.domain.issue.IssueSeverity;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -66,5 +67,8 @@ public class SimulationAiFixResponse {
 
         @Schema(description = "변경 내용 요약")
         private String changeDescription;
+
+        @Schema(description = "심각도", example = "HIGH")
+        private IssueSeverity severity;
     }
 }

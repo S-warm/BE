@@ -324,6 +324,7 @@ public class SimulationService {
                             .afterCode(fix.getAfterCode())
                             .impactDescription(fix.getImpactSummary())
                             .changeDescription(fix.getChangeSummaryBody())
+                            .severity(fix.getIssue().getSeverity())
                             .build()
             ).collect(Collectors.toList());
 
