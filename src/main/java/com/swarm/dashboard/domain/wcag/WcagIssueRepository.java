@@ -9,6 +9,6 @@ public interface WcagIssueRepository extends JpaRepository<WcagIssue, UUID> {
 
     List<WcagIssue> findByWcagResult_Id(UUID wcagResultId);
 
-    @Query("SELECT wi FROM WcagIssue wi JOIN wi.wcagResult wr WHERE wr.project.projectId = :projectId")
+    @Query("SELECT wi FROM WcagIssue wi JOIN FETCH wi.wcagResult wr JOIN FETCH wr.page WHERE wr.project.projectId = :projectId")
     List<WcagIssue> findByProjectId(UUID projectId);
 }

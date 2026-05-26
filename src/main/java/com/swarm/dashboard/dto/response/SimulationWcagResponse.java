@@ -54,6 +54,9 @@ public class SimulationWcagResponse {
         @Schema(description = "이슈 설명")
         private String description;
 
+        @Schema(description = "이슈가 발생한 페이지 URL")
+        private String url;
+
         @Schema(description = "위반된 DOM 요소 HTML")
         private String html;
 

@@ -445,6 +445,7 @@ public class SimulationService {
                         .title(issue.getTitle())
                         .severity(issue.getSeverity())
                         .description(issue.getDescription())
+                        .url(issue.getWcagResult().getPage().getUrl())
                         .html(issue.getHtml())
                         .wcagCriteria(issue.getWcagCriteria())
                         .build()
