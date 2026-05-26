@@ -43,8 +43,11 @@ public class IssueProcessor {
 
             // 2-1) simulation_pages upsert (page_order는 다음 순번으로)
             String encodedUrl = UrlKeyEncoder.encode(url);
-            String screenshotKey = (screenshotsPrefix != null)
+            String candidateKey = (screenshotsPrefix != null)
                 ? screenshotsPrefix + encodedUrl + ".png"
+                : null;
+            String screenshotKey = (candidateKey != null && s3PresignService.exists(candidateKey))
+                ? candidateKey
                 : null;
 
             SimulationPage page = pageRepo.findByProject_ProjectIdAndUrl(projectId, url)

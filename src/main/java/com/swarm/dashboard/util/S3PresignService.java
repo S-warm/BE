@@ -3,7 +3,10 @@ package com.swarm.dashboard.util;
 import com.swarm.dashboard.config.S3Properties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
@@ -14,6 +17,7 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class S3PresignService {
 
+    private final S3Client s3Client;
     private final S3Presigner presigner;
     private final S3Properties s3Properties;
 
@@ -53,5 +57,22 @@ public class S3PresignService {
             .build();
 
         return presigner.presignGetObject(presignRequest).url().toString();
+    }
+
+    /**
+     * S3에 해당 key의 파일이 실제로 존재하는지 확인한다.
+     * key가 null/blank이면 false 반환.
+     */
+    public boolean exists(String key) {
+        if (key == null || key.isBlank()) return false;
+        try {
+            s3Client.headObject(HeadObjectRequest.builder()
+                .bucket(s3Properties.bucket())
+                .key(key)
+                .build());
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        }
     }
 }
