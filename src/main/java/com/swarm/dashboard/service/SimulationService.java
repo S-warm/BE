@@ -137,6 +137,7 @@ public class SimulationService {
                 .build();
 
         Simulation saved = simulationRepository.save(simulation);
+        simulationRepository.flush();
         log.info("[목업 시뮬레이션 생성] projectId={}, title={}", saved.getProjectId(), saved.getTitle());
 
         s3ResultService.processFromDoneJson(saved.getProjectId(), request.getJobId());
