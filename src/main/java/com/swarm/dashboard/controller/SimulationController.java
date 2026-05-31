@@ -1,5 +1,6 @@
 package com.swarm.dashboard.controller;
 
+import com.swarm.dashboard.dto.request.MockSimulationRequest;
 import com.swarm.dashboard.dto.request.SimulationCreateRequest;
 import com.swarm.dashboard.dto.response.SimulationAiFixResponse;
 import com.swarm.dashboard.dto.response.SimulationCreateResponse;
@@ -48,6 +49,18 @@ public class SimulationController {
                 request.getAgeCount10(), request.getAgeCount20(), request.getAgeCount30(),
                 request.getAgeCount40(), request.getAgeCount50(), request.getAgeCount60(), request.getAgeCount70());
         SimulationCreateResponse response = simulationService.createSimulation(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/mock")
+    @Operation(summary = "목업 시뮬레이션 생성 (시연용)")
+    public ResponseEntity<SimulationCreateResponse> createMockSimulation(
+            @Parameter(description = "사용자 ID", required = true)
+            @RequestParam UUID userId,
+            @Valid @RequestBody MockSimulationRequest request
+    ) {
+        log.info("[목업 시뮬레이션 요청] userId={}, title={}, jobId={}", userId, request.getTitle(), request.getJobId());
+        SimulationCreateResponse response = simulationService.createMockSimulation(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

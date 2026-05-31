@@ -18,6 +18,7 @@ import com.swarm.dashboard.domain.wcag.WcagIssue;
 import com.swarm.dashboard.domain.wcag.WcagIssueRepository;
 import com.swarm.dashboard.domain.wcag.WcagResult;
 import com.swarm.dashboard.domain.wcag.WcagResultRepository;
+import com.swarm.dashboard.dto.request.MockSimulationRequest;
 import com.swarm.dashboard.dto.request.SimulationCreateRequest;
 import com.swarm.dashboard.dto.response.*;
 import com.swarm.dashboard.util.AgeBandConverter;
@@ -57,6 +58,7 @@ public class SimulationService {
     private final ObjectMapper objectMapper;
     private final S3PresignService s3PresignService;
     private final SimulationPoller simulationPoller;
+    private final S3ResultService s3ResultService;
 
     @Value("${python.endpoint-url}")
     private String pythonEndpointUrl;
@@ -117,6 +119,32 @@ public class SimulationService {
                 .projectId(saved.getProjectId())
                 .title(saved.getTitle())
                 .status(saved.getStatus())
+                .createdAt(saved.getCreatedAt())
+                .build();
+    }
+
+    @Transactional
+    public SimulationCreateResponse createMockSimulation(UUID userId, MockSimulationRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다. id=" + userId));
+
+        Simulation simulation = Simulation.builder()
+                .user(user)
+                .title(request.getTitle())
+                .targetUrl(request.getTargetUrl())
+                .status("pending")
+                .createdAt(OffsetDateTime.now())
+                .build();
+
+        Simulation saved = simulationRepository.save(simulation);
+        log.info("[목업 시뮬레이션 생성] projectId={}, title={}", saved.getProjectId(), saved.getTitle());
+
+        s3ResultService.processFromDoneJson(saved.getProjectId(), request.getJobId());
+
+        return SimulationCreateResponse.builder()
+                .projectId(saved.getProjectId())
+                .title(saved.getTitle())
+                .status("completed")
                 .createdAt(saved.getCreatedAt())
                 .build();
     }
