@@ -123,7 +123,6 @@ public class SimulationService {
                 .build();
     }
 
-    @Transactional
     public SimulationCreateResponse createMockSimulation(UUID userId, MockSimulationRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다. id=" + userId));
@@ -137,7 +136,6 @@ public class SimulationService {
                 .build();
 
         Simulation saved = simulationRepository.save(simulation);
-        simulationRepository.flush();
         log.info("[목업 시뮬레이션 생성] projectId={}, title={}", saved.getProjectId(), saved.getTitle());
 
         s3ResultService.processFromDoneJson(saved.getProjectId(), request.getJobId());
