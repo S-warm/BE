@@ -31,6 +31,12 @@ spring:
     time-zone: Asia/Seoul
     date-format: "yyyy-MM-dd'T'HH:mm:ssXXX"
 
+logging:
+  file:
+    name: /home/ubuntu/swarm-server/app.log
+  level:
+    com.swarm: DEBUG
+
 server:
   port: 8080
 
