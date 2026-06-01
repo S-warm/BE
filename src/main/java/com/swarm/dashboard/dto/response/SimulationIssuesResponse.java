@@ -79,5 +79,22 @@ public class SimulationIssuesResponse {
 
         @Schema(description = "태그 목록")
         private List<String> tags;
+
+        @Schema(description = "영향받은 페르소나 세션 목록")
+        private List<AffectedPersonaDto> affected_personas;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "영향받은 페르소나")
+    public static class AffectedPersonaDto {
+
+        @Schema(description = "세션 ID")
+        private String session_id;
+
+        @Schema(description = "페르소나 연령대 (예: 20s, 60s)")
+        private String persona_age;
     }
 }

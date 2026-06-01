@@ -9,6 +9,8 @@ import com.swarm.dashboard.domain.issue.Issue;
 import com.swarm.dashboard.domain.issue.IssueAgeStats;
 import com.swarm.dashboard.domain.issue.IssueAgeStatsRepository;
 import com.swarm.dashboard.domain.issue.IssueRepository;
+import com.swarm.dashboard.domain.issue.IssueSession;
+import com.swarm.dashboard.domain.issue.IssueSessionRepository;
 import com.swarm.dashboard.domain.page.SimulationPage;
 import com.swarm.dashboard.domain.page.SimulationPageRepository;
 import com.swarm.dashboard.domain.simulation.*;
@@ -49,6 +51,7 @@ public class SimulationService {
     private final AgeOverviewRepository ageOverviewRepository;
     private final IssueRepository issueRepository;
     private final IssueAgeStatsRepository issueAgeStatsRepository;
+    private final IssueSessionRepository issueSessionRepository;
     private final AiFixSuggestionRepository aiFixSuggestionRepository;
     private final WcagResultRepository wcagResultRepository;
     private final WcagIssueRepository wcagIssueRepository;
@@ -288,6 +291,11 @@ public class SimulationService {
         Map<UUID, List<IssueAgeStats>> statsByIssueId = allStats.stream()
                 .collect(Collectors.groupingBy(s -> s.getId().getIssueId()));
 
+        // N+1 방지: 전체 세션 한 번에 조회 후 issueId로 그룹핑
+        List<IssueSession> allSessions = issueSessionRepository.findByProjectId(projectId);
+        Map<UUID, List<IssueSession>> sessionsByIssueId = allSessions.stream()
+                .collect(Collectors.groupingBy(s -> s.getIssue().getId()));
+
         Map<SimulationPage, List<Issue>> byPage = issues.stream()
                 .collect(Collectors.groupingBy(Issue::getPage, LinkedHashMap::new, Collectors.toList()));
 
@@ -302,6 +310,14 @@ public class SimulationService {
                 int affectedUsersCount = ageStats.stream()
                         .mapToInt(s -> s.getAffectedUsers() != null ? s.getAffectedUsers() : 0).sum();
 
+                List<SimulationIssuesResponse.AffectedPersonaDto> affectedPersonas =
+                        sessionsByIssueId.getOrDefault(issue.getId(), List.of()).stream()
+                                .map(s -> SimulationIssuesResponse.AffectedPersonaDto.builder()
+                                        .session_id(s.getSessionId())
+                                        .persona_age(s.getAgeBand())
+                                        .build())
+                                .collect(Collectors.toList());
+
                 return SimulationIssuesResponse.IssueDto.builder()
                         .issueId(issue.getId())
                         .title(issue.getTitle())
@@ -313,6 +329,7 @@ public class SimulationService {
                         .description(issue.getDescription())
                         .targetHtml(issue.getTargetHtml())
                         .tags(issue.getTags() != null ? issue.getTags() : List.of())
+                        .affected_personas(affectedPersonas)
                         .build();
             }).collect(Collectors.toList());
 
@@ -432,59 +449,56 @@ public class SimulationService {
         List<WcagResult> wcagResults = wcagResultRepository.findByProjectId(projectId);
         if (wcagResults.isEmpty()) {
             return SimulationWcagResponse.builder()
-                    .score(0)
-                    .wcagLabel("미달")
-                    .distributionCritical(0)
-                    .distributionModerate(0)
-                    .distributionMinor(0)
-                    .issues(List.of())
+                    .pages(List.of())
                     .build();
         }
 
-        // 점수: 페이지별 점수 평균 (반올림)
-        double avgScore = wcagResults.stream()
-                .mapToInt(r -> r.getScore() != null ? r.getScore() : 0)
-                .average()
-                .orElse(0.0);
-        int aggregatedScore = (int) Math.round(avgScore);
+        // 페이지별 이슈 조회 (N+1 방지: 한 번에 조회 후 wcagResultId로 그룹핑)
+        List<WcagIssue> allWcagIssues = wcagIssueRepository.findByProjectId(projectId);
+        Map<UUID, List<WcagIssue>> issuesByResultId = allWcagIssues.stream()
+                .collect(Collectors.groupingBy(i -> i.getWcagResult().getId()));
 
-        // 등급: 평균 점수 기준 (95+ AAA / 70+ AA / 50+ A / <50 미달)
-        String aggregatedLabel = aggregatedScore >= 95 ? "AAA"
-                : aggregatedScore >= 70 ? "AA"
-                : aggregatedScore >= 50 ? "A"
-                : "미달";
+        // 페이지 순서 기준 정렬
+        wcagResults.sort(Comparator.comparingInt(r ->
+                r.getPage().getPageOrder() != null ? r.getPage().getPageOrder() : Integer.MAX_VALUE));
 
-        int totalCritical = wcagResults.stream()
-                .mapToInt(r -> r.getDistributionCritical() != null ? r.getDistributionCritical() : 0).sum();
-        int totalModerate = wcagResults.stream()
-                .mapToInt(r -> r.getDistributionModerate() != null ? r.getDistributionModerate() : 0).sum();
-        int totalMinor = wcagResults.stream()
-                .mapToInt(r -> r.getDistributionMinor() != null ? r.getDistributionMinor() : 0).sum();
+        List<SimulationWcagResponse.WcagPageDto> pages = wcagResults.stream().map(result -> {
+            List<WcagIssue> pageIssues = issuesByResultId.getOrDefault(result.getId(), List.of())
+                    .stream()
+                    .sorted(Comparator.comparingInt(i -> i.getSeverity() != null ? i.getSeverity().ordinal() : Integer.MAX_VALUE))
+                    .collect(Collectors.toList());
 
-        // severity 정렬: Critical→Moderate→Minor
-        List<WcagIssue> allWcagIssues = wcagIssueRepository.findByProjectId(projectId).stream()
-                .sorted(Comparator.comparingInt(i -> i.getSeverity() != null ? i.getSeverity().ordinal() : Integer.MAX_VALUE))
-                .collect(Collectors.toList());
+            List<SimulationWcagResponse.WcagIssueDto> issueDtos = pageIssues.stream().map(issue ->
+                    SimulationWcagResponse.WcagIssueDto.builder()
+                            .wcagIssueId(issue.getId())
+                            .title(issue.getTitle())
+                            .severity(issue.getSeverity())
+                            .description(issue.getDescription())
+                            .url(result.getPage().getUrl())
+                            .html(issue.getHtml())
+                            .wcagCriteria(issue.getWcagCriteria())
+                            .build()
+            ).collect(Collectors.toList());
 
-        List<SimulationWcagResponse.WcagIssueDto> issueDtos = allWcagIssues.stream().map(issue ->
-                SimulationWcagResponse.WcagIssueDto.builder()
-                        .wcagIssueId(issue.getId())
-                        .title(issue.getTitle())
-                        .severity(issue.getSeverity())
-                        .description(issue.getDescription())
-                        .url(issue.getWcagResult().getPage().getUrl())
-                        .html(issue.getHtml())
-                        .wcagCriteria(issue.getWcagCriteria())
-                        .build()
-        ).collect(Collectors.toList());
+            int score = result.getScore() != null ? result.getScore() : 0;
+            String wcagLabel = result.getWcagLabel() != null ? result.getWcagLabel()
+                    : (score >= 95 ? "AAA" : score >= 70 ? "AA" : score >= 50 ? "A" : "미달");
+
+            return SimulationWcagResponse.WcagPageDto.builder()
+                    .order(result.getPage().getPageOrder() != null ? result.getPage().getPageOrder() : 0)
+                    .pageUrl(result.getPage().getUrl())
+                    .screenshotUrl(s3PresignService.presign(result.getPage().getScreenshotUrl()))
+                    .score(score)
+                    .wcagLabel(wcagLabel)
+                    .distributionCritical(result.getDistributionCritical() != null ? result.getDistributionCritical() : 0)
+                    .distributionModerate(result.getDistributionModerate() != null ? result.getDistributionModerate() : 0)
+                    .distributionMinor(result.getDistributionMinor() != null ? result.getDistributionMinor() : 0)
+                    .issues(issueDtos)
+                    .build();
+        }).collect(Collectors.toList());
 
         return SimulationWcagResponse.builder()
-                .score(aggregatedScore)
-                .wcagLabel(aggregatedLabel)
-                .distributionCritical(totalCritical)
-                .distributionModerate(totalModerate)
-                .distributionMinor(totalMinor)
-                .issues(issueDtos)
+                .pages(pages)
                 .build();
     }
 }

@@ -17,23 +17,43 @@ import java.util.UUID;
 @Schema(description = "WCAG 검사 탭 응답 DTO")
 public class SimulationWcagResponse {
 
-    @Schema(description = "WCAG 점수 (0~100)")
-    private Integer score;
+    @Schema(description = "페이지별 WCAG 검사 결과 목록")
+    private List<WcagPageDto> pages;
 
-    @Schema(description = "WCAG 등급 (AAA/AA/A/미달)")
-    private String wcagLabel;
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "페이지별 WCAG 검사 결과")
+    public static class WcagPageDto {
 
-    @Schema(description = "Critical 위반 수")
-    private Integer distributionCritical;
+        @Schema(description = "페이지 순서")
+        private Integer order;
 
-    @Schema(description = "Moderate 위반 수")
-    private Integer distributionModerate;
+        @Schema(description = "페이지 URL")
+        private String pageUrl;
 
-    @Schema(description = "Minor 위반 수")
-    private Integer distributionMinor;
+        @Schema(description = "스크린샷 URL")
+        private String screenshotUrl;
 
-    @Schema(description = "WCAG 이슈 목록 (Critical → Moderate → Minor 순)")
-    private List<WcagIssueDto> issues;
+        @Schema(description = "WCAG 점수 (0~100)")
+        private Integer score;
+
+        @Schema(description = "WCAG 등급 (AAA/AA/A/미달)")
+        private String wcagLabel;
+
+        @Schema(description = "Critical 위반 수")
+        private Integer distributionCritical;
+
+        @Schema(description = "Moderate 위반 수")
+        private Integer distributionModerate;
+
+        @Schema(description = "Minor 위반 수")
+        private Integer distributionMinor;
+
+        @Schema(description = "WCAG 이슈 목록 (Critical → Moderate → Minor 순)")
+        private List<WcagIssueDto> issues;
+    }
 
     @Getter
     @Builder
