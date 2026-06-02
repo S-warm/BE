@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import com.swarm.dashboard.domain.issue.IssueSeverity;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -67,6 +68,9 @@ public class SimulationIssuesResponse {
 
         @Schema(description = "이슈 발생 세션 수")
         private Integer failCount;
+
+        @Schema(description = "실패율")
+        private BigDecimal failRate;
 
         @Schema(description = "영향받은 사용자 수 (age_stats 합산)")
         private int affectedUsersCount;

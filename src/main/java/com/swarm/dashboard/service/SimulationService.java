@@ -325,6 +325,7 @@ public class SimulationService {
                         .subCategory(issue.getSubCategory())
                         .severity(issue.getSeverity())
                         .failCount(issue.getFailCount())
+                        .failRate(issue.getFailRate())
                         .affectedUsersCount(affectedUsersCount)
                         .description(issue.getDescription())
                         .targetHtml(issue.getTargetHtml())
